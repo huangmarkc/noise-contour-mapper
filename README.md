@@ -8,11 +8,14 @@ is needed.
 
 ## Run it
 
-Two options:
+Three options:
 
-- **Desktop app (recommended):** run `Noise Contour Mapper.exe` (or install it via the
+- **Online (share this link):** <https://huangmarkc.github.io/noise-contour-mapper/> —
+  the same tool, no install needed. It updates automatically whenever this repo's
+  `main` branch changes. Floor plans and measurements never leave your browser.
+- **Desktop app:** run `Noise Contour Mapper.exe` (or install it via the
   setup exe under `src-tauri/target/.../bundle/nsis/`).
-- **Browser:** double-click `ui/index.html` — the same tool opens in your browser.
+- **Browser (offline):** double-click `ui/index.html` — the same tool opens locally.
 
 ## Workflow
 
