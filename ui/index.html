@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noise Contour Mapper</title>
+<script src="vendor/pdf.min.js" defer></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: "Segoe UI", system-ui, sans-serif; font-size: 13px; color: #222; }
+  #app { display: flex; height: 100%; }
+
+  /* ---------- sidebar ---------- */
+  #sidebar { width: 305px; min-width: 305px; background: #f4f5f7; border-right: 1px solid #d7dade;
+             overflow-y: auto; padding: 10px 12px 30px; }
+  #sidebar h1 { font-size: 15px; margin: 4px 0 10px; color: #1a355e; }
+  .sec { background: #fff; border: 1px solid #dde0e4; border-radius: 8px; padding: 9px 10px; margin-bottom: 10px; }
+  .sec h2 { font-size: 12px; margin: 0 0 7px; color: #1a355e; text-transform: uppercase; letter-spacing: .4px; }
+  .row { display: flex; align-items: center; gap: 6px; margin: 5px 0; flex-wrap: wrap; }
+  .row label { flex: 1; }
+  button { background: #2b5ea7; color: #fff; border: none; border-radius: 5px; padding: 6px 10px;
+           cursor: pointer; font-size: 12.5px; }
+  button:hover { background: #234c88; }
+  button.sec2 { background: #e8ecf2; color: #1a355e; border: 1px solid #c9d2de; }
+  button.sec2:hover { background: #dbe2ec; }
+  button.warn { background: #b03a2e; }
+  input[type=number], input[type=text], select { border: 1px solid #c6cbd2; border-radius: 4px; padding: 4px 6px; font-size: 12.5px; }
+  input[type=number] { width: 62px; }
+  input[type=color] { width: 30px; height: 24px; padding: 0 2px; border: 1px solid #c6cbd2; border-radius: 4px; cursor: pointer; }
+  input[type=range] { flex: 1; }
+  .hint { color: #777; font-size: 11.5px; line-height: 1.35; margin: 4px 0; }
+  .val { min-width: 34px; text-align: right; color: #555; }
+  #ptTable { max-height: 210px; overflow-y: auto; margin-top: 6px; }
+  .ptRow { display: flex; align-items: center; gap: 4px; padding: 2px 0; border-bottom: 1px solid #f0f1f3; }
+  .ptRow input.lbl { width: 62px; }
+  .ptRow input.db  { width: 58px; }
+  .ptRow .xy { color: #999; font-size: 10.5px; width: 74px; overflow: hidden; }
+  .ptRow button { padding: 1px 7px; background: #e8ecf2; color: #b03a2e; border: 1px solid #d5dae2; }
+  .bandRow { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  .bandRow .blabel { width: 88px; color: #444; }
+  details summary { cursor: pointer; color: #1a355e; font-weight: 600; }
+  details p { margin: 5px 0; }
+  #calibInfo { color: #2e7d32; font-weight: 600; }
+
+  /* ---------- main ---------- */
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #toolbar { display: flex; gap: 6px; align-items: center; padding: 7px 10px; background: #fff; border-bottom: 1px solid #d7dade; }
+  #toolbar .modeBtn { background: #e8ecf2; color: #1a355e; border: 1px solid #c9d2de; }
+  #toolbar .modeBtn.active { background: #2b5ea7; color: #fff; border-color: #2b5ea7; }
+  #toolbar .spacer { flex: 1; }
+  #canvasWrap { flex: 1; position: relative; background: #8f979f; overflow: hidden; }
+  #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #status { padding: 4px 12px; background: #f4f5f7; border-top: 1px solid #d7dade; color: #555;
+            font-size: 12px; white-space: nowrap; overflow: hidden; }
+
+  /* ---------- modals ---------- */
+  .modal { position: absolute; background: #fff; border: 1px solid #98a4b3; border-radius: 8px;
+           box-shadow: 0 6px 22px rgba(0,0,0,.28); padding: 12px; z-index: 20; min-width: 210px; }
+  .modal h3 { margin: 0 0 8px; font-size: 13px; color: #1a355e; }
+  .modal .row { margin: 6px 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <h1>&#128266; Noise Contour Mapper</h1>
+
+    <div class="sec">
+      <h2>1 &middot; Floor plan</h2>
+      <div class="row">
+        <button id="btnLoadPlan">Load floor plan&hellip;</button>
+        <button id="btnDemo" class="sec2">Load demo</button>
+      </div>
+      <div class="hint">PNG, JPG, or PDF (first page is used).</div>
+      <input type="file" id="filePlan" accept=".png,.jpg,.jpeg,.gif,.bmp,.webp,.pdf" class="hidden">
+    </div>
+
+    <div class="sec">
+      <h2>2 &middot; Measurement points</h2>
+      <div class="hint">Use the <b>Add points</b> tool above the map and click each SLM position, or import a CSV
+        (<code>label,x,y,dBA</code> or <code>x,y,dBA</code>).</div>
+      <div class="row">
+        <button id="btnImportCsv" class="sec2">Import CSV</button>
+        <select id="csvUnits" title="Units of x,y in the CSV">
+          <option value="px">x,y in pixels</option>
+          <option value="pct">x,y in % of plan</option>
+          <option value="unit">x,y in m/ft (calibrated)</option>
+        </select>
+      </div>
+      <div class="row">
+        <button id="btnExportCsv" class="sec2">Export CSV</button>
+        <button id="btnClearPts" class="warn">Clear all</button>
+      </div>
+      <input type="file" id="fileCsv" accept=".csv,.txt" class="hidden">
+      <div id="ptTable"></div>
+      <div class="hint" id="ptCount"></div>
+    </div>
+
+    <div class="sec">
+      <h2>2b &middot; Noise sources (optional)</h2>
+      <div class="hint">For the <b>Source model</b> method: use <b>Add source</b> in the toolbar to place known equipment as point sources, with the sound level at a reference distance (e.g., from the nameplate or a close-up reading). Needs a calibrated scale (Section 6). Predictions use the inverse square law and are calibrated to your measurements by residual correction.</div>
+      <div id="srcTable"></div>
+      <div class="hint" id="srcCount"></div>
+    </div>
+
+    <div class="sec">
+      <h2>3 &middot; Calculation</h2>
+      <div class="row"><label>Method</label>
+        <select id="selMethod">
+          <option value="idw">Inverse distance (IDW)</option>
+          <option value="rbf">Radial basis (multiquadric)</option>
+          <option value="source">Source model + residuals</option>
+        </select>
+      </div>
+      <div class="row"><label>IDW power</label><input type="range" id="rngPower" min="1" max="4" step="0.5" value="2"><span class="val" id="valPower">2</span></div>
+      <div class="row"><label>Grid resolution</label><input type="range" id="rngGrid" min="60" max="300" step="10" value="160"><span class="val" id="valGrid">160</span></div>
+      <div class="row"><label>Mask beyond (px, 0&nbsp;=&nbsp;off)</label><input type="number" id="numMask" min="0" step="10" value="0"></div>
+      <div class="hint">Mask hides the interpolation farther than the given distance from any measurement, to avoid extrapolating into unsurveyed areas.</div>
+    </div>
+
+    <div class="sec">
+      <h2>4 &middot; Display</h2>
+      <div class="row"><label>Heat map style</label>
+        <select id="selStyle"><option value="banded">Banded (threshold colors)</option><option value="smooth">Smooth gradient</option></select>
+      </div>
+      <div class="row"><label>Overlay opacity</label><input type="range" id="rngOpacity" min="0.1" max="1" step="0.05" value="0.55"><span class="val" id="valOpacity">55%</span></div>
+      <div class="row"><label><input type="checkbox" id="chkContours" checked> Contour lines</label>
+                       <label><input type="checkbox" id="chkClabels" checked> Contour labels</label></div>
+      <div class="row"><label><input type="checkbox" id="chkMarkers" checked> Point markers</label>
+                       <label><input type="checkbox" id="chkMlabels" checked> dBA labels</label></div>
+      <div class="row"><label><input type="checkbox" id="chkLegend" checked> Legend</label></div>
+    </div>
+
+    <div class="sec">
+      <h2>5 &middot; Noise bands (dBA)</h2>
+      <div id="bandList"></div>
+      <div class="row">
+        <button id="btnAddBand" class="sec2">+ Add band</button>
+        <button id="btnDelBand" class="sec2">&minus; Remove top band</button>
+        <button id="btnResetBands" class="sec2">Reset</button>
+      </div>
+      <div class="hint">Contour lines are drawn at each band boundary.</div>
+    </div>
+
+    <div class="sec">
+      <h2>6 &middot; Scale &amp; coordinates</h2>
+      <div class="row"><button id="btnCalib" class="sec2">Calibrate scale&hellip;</button><span id="calibInfo">not set</span></div>
+      <div class="hint">Click two points a known distance apart on the plan (e.g., a dimensioned wall), then enter the real distance. Adds a scale bar.</div>
+      <div class="row"><button id="btnOrigin" class="sec2">Set origin (0,0)&hellip;</button><span id="originInfo"></span></div>
+      <div class="hint">After calibrating, click a reference point (e.g., a building corner). Point positions are then shown and imported/exported in real units &mdash; x to the right, y upward from the origin.</div>
+    </div>
+
+    <div class="sec">
+      <h2>7 &middot; Project &amp; export</h2>
+      <div class="row"><label>Map title</label></div>
+      <div class="row"><input type="text" id="txtTitle" value="Noise Contour Map" style="flex:1"></div>
+      <div class="row">
+        <button id="btnSave" class="sec2">Save project</button>
+        <button id="btnOpen" class="sec2">Open project</button>
+      </div>
+      <div class="row"><button id="btnPng">Export map as PNG</button></div>
+      <input type="file" id="fileProj" accept=".json" class="hidden">
+    </div>
+
+    <div class="sec">
+      <details>
+        <summary>How to use</summary>
+        <p>1. Load the client floor plan (or a PDF figure &mdash; page 1 is used).</p>
+        <p>2. Optionally calibrate the scale using a known dimension, then set an origin point (a building corner works well). Positions are then handled in real units (x right, y up) instead of pixels.</p>
+        <p>3. Switch to <b>Add points</b> and click each sound-level-meter location; enter the measured dBA. Or import a CSV.</p>
+        <p>4. The heat map and contours update live. Tune method, bands, and opacity.</p>
+        <p>Alternative method: place known equipment as <b>noise sources</b> (level at a reference distance) and choose <b>Source model + residuals</b>. Levels are predicted with the inverse square law and energy addition, then calibrated to your measurements by interpolating the residuals. The result matches your readings at each SLM point while following the physics between them. It is a planning/visualization aid, not a substitute for dosimetry.</p>
+        <p>5. Drag markers (in Pan mode) to fine-tune positions. Edit values in the point list.</p>
+        <p>6. Export the finished map as PNG for reports, or save the project as JSON to continue later.</p>
+        <p>Interpolated values are estimates between measurements &mdash; verify critical boundaries (e.g., the 85&nbsp;dBA action level) with additional measurements.</p>
+      </details>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="toolbar">
+      <button class="modeBtn active" id="modePan" title="Pan / drag points (V)">&#9995; Pan / select</button>
+      <button class="modeBtn" id="modeAdd" title="Click plan to add measurement (A)">&#10133; Add points</button>
+      <button class="modeBtn" id="modeSrc" title="Click plan to add a noise source (S)">&#128266; Add source</button>
+      <button class="modeBtn" id="modeCal" title="Click two points of known distance (C)">&#128207; Calibrate</button>
+      <span class="spacer"></span>
+      <button class="sec2" id="btnZoomOut">&minus;</button>
+      <button class="sec2" id="btnZoomIn">+</button>
+      <button class="sec2" id="btnFit">Fit</button>
+    </div>
+    <div id="canvasWrap">
+      <canvas id="cv"></canvas>
+
+      <div class="modal hidden" id="ptModal">
+        <h3>New measurement</h3>
+        <div class="row"><label>Label</label><input type="text" id="pmLabel" style="width:90px"></div>
+        <div class="row"><label>Level (dBA)</label><input type="number" id="pmDb" step="0.1" style="width:80px"></div>
+        <div class="row"><button id="pmOk">Add</button><button class="sec2" id="pmCancel">Cancel</button></div>
+      </div>
+
+      <div class="modal hidden" id="srcModal">
+        <h3>New noise source</h3>
+        <div class="row"><label>Label</label><input type="text" id="smLabel" style="width:100px"></div>
+        <div class="row"><label>Level (dBA)</label><input type="number" id="smDb" step="0.1" style="width:80px"></div>
+        <div class="row"><label>at distance</label><input type="number" id="smRef" step="0.1" min="0.1" value="1" style="width:60px"><span id="smUnit">m</span></div>
+        <div class="row"><button id="smOk">Add</button><button class="sec2" id="smCancel">Cancel</button></div>
+      </div>
+
+      <div class="modal hidden" id="calModal">
+        <h3>Real-world distance</h3>
+        <div class="row"><input type="number" id="cmDist" step="0.1" min="0.1" style="width:80px">
+          <select id="cmUnit"><option value="m">meters</option><option value="ft">feet</option></select></div>
+        <div class="row"><button id="cmOk">Set scale</button><button class="sec2" id="cmCancel">Cancel</button></div>
+      </div>
+    </div>
+    <div id="status">Load a floor plan to begin.</div>
+  </main>
+</div>
+
+<script>
+"use strict";
+/* =============================== state =============================== */
+let baseImg = null, baseDataURL = null, imgW = 0, imgH = 0;
+let points = [];                    // {id, label, x, y, db} — x,y in image pixels
+let nextId = 1;
+let sources = [];                   // {id, label, x, y, db, refDist} — noise sources; db at refDist (real units)
+let nextSrcId = 1;
+let srcResiduals = null;            // per-measurement residuals (measured − source-model prediction)
+let edges  = [80, 85, 90, 95];      // band boundaries (ascending)
+let colors = ['#2e7d32', '#fdd835', '#fb8c00', '#e53935', '#8e24aa']; // edges.length+1 colors
+const DEFAULT_EDGES = edges.slice(), DEFAULT_COLORS = colors.slice();
+const S = {                          // settings
+  method: 'idw', power: 2, gridRes: 160, maskDist: 0,
+  opacity: 0.55, smooth: false,
+  showContours: true, showClabels: true, showMarkers: true, showMlabels: true, showLegend: true
+};
+let calib = null;                    // {pxPerUnit, unit, x1,y1,x2,y2, dist}
+let view  = { scale: 1, tx: 0, ty: 0 };
+let mode  = 'pan';                   // pan | add | cal
+
+let grid = null, gw = 0, gh = 0, sx = 0, sy = 0;   // interpolated field
+let overlay = null;                  // offscreen heat-map canvas (image-sized aspect)
+let contours = [];                   // [{T, segs:[[x1,y1,x2,y2],...]}]
+let anchors = [];                    // gradient anchors [{v, c:[r,g,b]}]
+
+let drag = null;                     // {type:'pan'|'pt'|'src', ...}
+let calClicks = [];                  // calibration clicks in image coords
+let pendingPt = null;                // image coords awaiting modal confirm
+let pendingSrc = null;               // image coords awaiting source modal confirm
+let mouseImg = null;
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+const $ = id => document.getElementById(id);
+
+/* =============================== utils =============================== */
+function hex2rgb(h) { h = h.replace('#', ''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+function rgbStr(c, a) { return a === undefined ? `rgb(${c[0]},${c[1]},${c[2]})` : `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function niceNum(t) { const e = Math.pow(10, Math.floor(Math.log10(t))); const f = t / e;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * e; }
+// image px <-> real-world units (x right, y UP from the user-set origin)
+function calOrigin() {  // projects saved before origins existed default to the bottom-left corner
+  return { ox: calib.ox == null ? 0 : calib.ox, oy: calib.oy == null ? imgH : calib.oy };
+}
+function toUnits(x, y) {
+  if (!calib) return null;
+  const o = calOrigin();
+  return { ux: (x - o.ox) / calib.pxPerUnit, uy: (o.oy - y) / calib.pxPerUnit };
+}
+function fromUnits(ux, uy) {
+  const o = calOrigin();
+  return { x: o.ox + ux * calib.pxPerUnit, y: o.oy - uy * calib.pxPerUnit };
+}
+function download(name, url) { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); }
+async function saveAs(filename, ext, desc, data) {
+  // data: string (text files) or Uint8Array (binary). In the desktop app, use the
+  // native save dialog + Rust write; in a browser, fall back to an anchor download.
+  const T = window.__TAURI__;
+  if (T && T.dialog) {
+    try {
+      const path = await T.dialog.save({ defaultPath: filename, filters: [{ name: desc, extensions: [ext] }] });
+      if (!path) return;
+      const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000)
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      await T.core.invoke('write_file', { path, dataBase64: btoa(bin) });
+    } catch (e) { alert('Could not save the file: ' + e); }
+    return;
+  }
+  const url = typeof data === 'string'
+    ? 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(data)
+    : URL.createObjectURL(new Blob([data]));
+  download(filename, url);
+}
+
+function bandLabel(i) {
+  if (i === 0) return `< ${edges[0]}`;
+  if (i === colors.length - 1) return `> ${edges[edges.length - 1]}`;
+  return `${edges[i-1]}–${edges[i]}`;
+}
+function bandColor(v) {
+  for (let i = 0; i < edges.length; i++) if (v < edges[i]) return colors[i];
+  return colors[colors.length - 1];
+}
+function buildAnchors() {
+  anchors = [];
+  const n = colors.length;
+  const w = edges.length > 1 ? (edges[edges.length-1] - edges[0]) / (edges.length - 1) : 5;
+  for (let i = 0; i < n; i++) {
+    let v;
+    if (i === 0) v = edges[0] - w / 2;
+    else if (i === n - 1) v = edges[edges.length-1] + w / 2;
+    else v = (edges[i-1] + edges[i]) / 2;
+    anchors.push({ v, c: hex2rgb(colors[i]) });
+  }
+}
+function gradColor(v) {
+  if (v <= anchors[0].v) return anchors[0].c;
+  for (let i = 1; i < anchors.length; i++) {
+    if (v <= anchors[i].v) {
+      const a = anchors[i-1], b = anchors[i], t = (v - a.v) / (b.v - a.v || 1);
+      return [a.c[0]+(b.c[0]-a.c[0])*t, a.c[1]+(b.c[1]-a.c[1])*t, a.c[2]+(b.c[2]-a.c[2])*t];
+    }
+  }
+  return anchors[anchors.length-1].c;
+}
+
+/* ========================= interpolation ============================ */
+let rbfW = null, rbfEps = 1;
+function solveRBF() {
+  const n = points.length;
+  // eps = mean nearest-neighbor distance
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    let best = Infinity;
+    for (let j = 0; j < n; j++) if (j !== i) {
+      const d = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
+      if (d < best) best = d;
+    }
+    sum += best;
+  }
+  rbfEps = Math.max(sum / n, 1);
+  const A = [], z = [];
+  for (let i = 0; i < n; i++) {
+    A.push(new Float64Array(n));
+    for (let j = 0; j < n; j++) {
+      const d = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
+      A[i][j] = Math.sqrt(d*d + rbfEps*rbfEps);
+    }
+    z.push(points[i].db);
+  }
+  // gaussian elimination with partial pivoting
+  const idx = [...Array(n).keys()];
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    if (Math.abs(A[p][c]) < 1e-12) return null;
+    [A[c], A[p]] = [A[p], A[c]]; [z[c], z[p]] = [z[p], z[c]];
+    for (let r = c + 1; r < n; r++) {
+      const f = A[r][c] / A[c][c];
+      for (let k = c; k < n; k++) A[r][k] -= f * A[c][k];
+      z[r] -= f * z[c];
+    }
+  }
+  const w = new Float64Array(n);
+  for (let r = n - 1; r >= 0; r--) {
+    let s = z[r];
+    for (let k = r + 1; k < n; k++) s -= A[r][k] * w[k];
+    w[r] = s / A[r][r];
+  }
+  return w;
+}
+// --- source model (inverse square law + energy addition, per noise_model.py) ---
+function predictSourceDba(x, y) {
+  // Distances converted to real units via the scale calibration; the far-field
+  // inverse square law breaks down very close to a source, so distances are
+  // clamped to a 0.5 m/ft minimum. dBA values are combined as energies, never
+  // added arithmetically.
+  let energy = 0;
+  for (const s of sources) {
+    const dm = Math.max(Math.hypot(x - s.x, y - s.y) / calib.pxPerUnit, 0.5);
+    const L = s.db - 20 * Math.log10(dm / s.refDist);
+    energy += Math.pow(10, L / 10);
+  }
+  return 10 * Math.log10(energy);
+}
+function idwResidual(x, y) {
+  // IDW-interpolated residual field calibrates the idealized source model to
+  // the measured SLM readings (absorbing reflections, shielding, etc.).
+  const minPx = 0.5 * calib.pxPerUnit;
+  let num = 0, den = 0;
+  for (let i = 0; i < points.length; i++) {
+    const d = Math.max(Math.hypot(x - points[i].x, y - points[i].y), minPx);
+    const w = 1 / Math.pow(d, S.power);
+    num += w * srcResiduals[i]; den += w;
+  }
+  return num / den;
+}
+function maskedOut(x, y) {
+  if (S.maskDist <= 0 || points.length === 0) return false;
+  let nearest = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const d = Math.hypot(x - points[i].x, y - points[i].y);
+    if (d < nearest) nearest = d;
+  }
+  return nearest > S.maskDist;
+}
+function valueAt(x, y) {
+  const n = points.length;
+  if (S.method === 'source') {
+    if (!calib || sources.length === 0) return NaN;
+    if (maskedOut(x, y)) return NaN;
+    let v = predictSourceDba(x, y);
+    if (srcResiduals && n > 0) v += idwResidual(x, y);
+    return v;
+  }
+  if (n === 0) return NaN;
+  if (maskedOut(x, y)) return NaN;
+  if (S.method === 'rbf' && rbfW) {
+    let s = 0;
+    for (let i = 0; i < n; i++) {
+      const d = Math.hypot(x - points[i].x, y - points[i].y);
+      s += rbfW[i] * Math.sqrt(d*d + rbfEps*rbfEps);
+    }
+    return s;
+  }
+  // IDW
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    const d = Math.hypot(x - points[i].x, y - points[i].y);
+    if (d < 1e-6) return points[i].db;
+    const w = 1 / Math.pow(d, S.power);
+    num += w * points[i].db; den += w;
+  }
+  return num / den;
+}
+function computeField() {
+  const ready = baseImg && (S.method === 'source'
+    ? (calib && sources.length >= 1)
+    : points.length >= 2);
+  if (!ready) { grid = null; overlay = null; contours = []; srcResiduals = null; return; }
+  rbfW = (S.method === 'rbf' && points.length >= 3) ? solveRBF() : null;
+  srcResiduals = (S.method === 'source' && points.length > 0)
+    ? points.map(p => p.db - predictSourceDba(p.x, p.y))
+    : null;
+  gw = S.gridRes; gh = Math.max(10, Math.round(gw * imgH / imgW));
+  sx = imgW / gw; sy = imgH / gh;
+  grid = new Float64Array((gw + 1) * (gh + 1));
+  for (let j = 0; j <= gh; j++)
+    for (let i = 0; i <= gw; i++)
+      grid[j * (gw + 1) + i] = valueAt(i * sx, j * sy);
+}
+
+/* =========================== heat overlay =========================== */
+function buildOverlay() {
+  if (!grid) { overlay = null; return; }
+  buildAnchors();
+  const ow = Math.min(imgW, 1100), oh = Math.max(10, Math.round(ow * imgH / imgW));
+  overlay = document.createElement('canvas'); overlay.width = ow; overlay.height = oh;
+  const octx = overlay.getContext('2d');
+  const id = octx.createImageData(ow, oh), px = id.data;
+  const W = gw + 1;
+  for (let y = 0; y < oh; y++) {
+    const gy = y / (oh - 1) * gh, j0 = Math.min(Math.floor(gy), gh - 1), fy = gy - j0;
+    for (let x = 0; x < ow; x++) {
+      const gx = x / (ow - 1) * gw, i0 = Math.min(Math.floor(gx), gw - 1), fx = gx - i0;
+      const v00 = grid[j0*W + i0],     v10 = grid[j0*W + i0 + 1],
+            v01 = grid[(j0+1)*W + i0], v11 = grid[(j0+1)*W + i0 + 1];
+      const o = (y * ow + x) * 4;
+      if (isNaN(v00) || isNaN(v10) || isNaN(v01) || isNaN(v11)) { px[o+3] = 0; continue; }
+      const v = v00*(1-fx)*(1-fy) + v10*fx*(1-fy) + v01*(1-fx)*fy + v11*fx*fy;
+      const c = S.smooth ? gradColor(v) : hex2rgb(bandColor(v));
+      px[o] = c[0]; px[o+1] = c[1]; px[o+2] = c[2]; px[o+3] = 255;
+    }
+  }
+  octx.putImageData(id, 0, 0);
+}
+
+/* ========================= marching squares ========================= */
+function computeContours() {
+  contours = [];
+  if (!grid) return;
+  const W = gw + 1;
+  for (const T of edges) {
+    const segs = [];
+    for (let j = 0; j < gh; j++) {
+      for (let i = 0; i < gw; i++) {
+        const tl = grid[j*W+i], tr = grid[j*W+i+1], bl = grid[(j+1)*W+i], br = grid[(j+1)*W+i+1];
+        if (isNaN(tl) || isNaN(tr) || isNaN(bl) || isNaN(br)) continue;
+        const idx = (tl > T ? 1 : 0) | (tr > T ? 2 : 0) | (br > T ? 4 : 0) | (bl > T ? 8 : 0);
+        if (idx === 0 || idx === 15) continue;
+        const x0 = i * sx, y0 = j * sy;
+        const lerp = (a, b) => { const d = b - a; return Math.abs(d) < 1e-12 ? 0.5 : clamp((T - a) / d, 0, 1); };
+        const top    = [x0 + lerp(tl, tr) * sx, y0];
+        const right  = [x0 + sx, y0 + lerp(tr, br) * sy];
+        const bottom = [x0 + lerp(bl, br) * sx, y0 + sy];
+        const left   = [x0, y0 + lerp(tl, bl) * sy];
+        const add = (a, b) => segs.push([a[0], a[1], b[0], b[1]]);
+        switch (idx) {
+          case 1: case 14: add(left, top); break;
+          case 2: case 13: add(top, right); break;
+          case 3: case 12: add(left, right); break;
+          case 4: case 11: add(right, bottom); break;
+          case 6: case 9:  add(top, bottom); break;
+          case 7: case 8:  add(left, bottom); break;
+          case 5:  { const c = (tl+tr+bl+br)/4 > T;
+                     if (c) { add(left, bottom); add(top, right); } else { add(left, top); add(right, bottom); } break; }
+          case 10: { const c = (tl+tr+bl+br)/4 > T;
+                     if (c) { add(left, top); add(right, bottom); } else { add(left, bottom); add(top, right); } break; }
+        }
+      }
+    }
+    if (segs.length) contours.push({ T, segs });
+  }
+}
+
+/* ============================ drawing =============================== */
+function drawMapLayers(c, k) {  // c: 2d context already in image coords; k: px size unit
+  if (overlay) {
+    c.globalAlpha = S.opacity;
+    c.imageSmoothingEnabled = true;
+    c.drawImage(overlay, 0, 0, imgW, imgH);
+    c.globalAlpha = 1;
+  }
+  if (S.showContours) {
+    for (const co of contours) {
+      c.strokeStyle = 'rgba(30,30,30,0.85)';
+      c.lineWidth = 1.4 * k;
+      c.beginPath();
+      for (const s of co.segs) { c.moveTo(s[0], s[1]); c.lineTo(s[2], s[3]); }
+      c.stroke();
+      if (S.showClabels) {
+        c.font = `bold ${11*k}px Segoe UI, sans-serif`;
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        const minSep = 260 * k, placed = [];
+        for (let si = 0; si < co.segs.length; si += 7) {
+          const s = co.segs[si], mx = (s[0]+s[2])/2, my = (s[1]+s[3])/2;
+          if (placed.some(p => Math.hypot(p[0]-mx, p[1]-my) < minSep)) continue;
+          placed.push([mx, my]);
+          c.lineWidth = 3.2 * k; c.strokeStyle = 'rgba(255,255,255,0.9)';
+          c.strokeText(String(co.T), mx, my);
+          c.fillStyle = '#111'; c.fillText(String(co.T), mx, my);
+          if (placed.length >= 5) break;
+        }
+      }
+    }
+  }
+  if (S.showMarkers) {
+    for (const s of sources) {   // noise sources: orange diamonds
+      c.beginPath();
+      c.moveTo(s.x, s.y - 8*k); c.lineTo(s.x + 8*k, s.y);
+      c.lineTo(s.x, s.y + 8*k); c.lineTo(s.x - 8*k, s.y); c.closePath();
+      c.fillStyle = '#e65100'; c.fill();
+      c.lineWidth = 2*k; c.strokeStyle = '#fff'; c.stroke();
+      if (S.showMlabels) {
+        c.font = `bold ${11*k}px Segoe UI, sans-serif`;
+        c.textAlign = 'left'; c.textBaseline = 'bottom';
+        const t = `${s.label} · ${s.db.toFixed(0)}`;
+        c.lineWidth = 3.4*k; c.strokeStyle = 'rgba(255,255,255,0.92)';
+        c.strokeText(t, s.x + 10*k, s.y - 7*k);
+        c.fillStyle = '#bf360c'; c.fillText(t, s.x + 10*k, s.y - 7*k);
+      }
+    }
+    for (const p of points) {
+      c.beginPath(); c.arc(p.x, p.y, 6.5*k, 0, Math.PI*2);
+      c.fillStyle = '#fff'; c.fill();
+      c.lineWidth = 2.2*k; c.strokeStyle = '#1a355e'; c.stroke();
+      c.beginPath(); c.arc(p.x, p.y, 2.4*k, 0, Math.PI*2); c.fillStyle = '#1a355e'; c.fill();
+      if (S.showMlabels) {
+        c.font = `bold ${11.5*k}px Segoe UI, sans-serif`;
+        c.textAlign = 'left'; c.textBaseline = 'bottom';
+        const t = `${p.db.toFixed(1)}`;
+        const tx = p.x + 9*k, ty = p.y - 6*k;
+        c.lineWidth = 3.4*k; c.strokeStyle = 'rgba(255,255,255,0.92)';
+        c.strokeText(t, tx, ty); c.fillStyle = '#111'; c.fillText(t, tx, ty);
+      }
+    }
+  }
+}
+function drawLegend(c, x, y, k) {
+  const rows = colors.length, rh = 17*k, w = 148*k, h = rows*rh + 30*k;
+  c.save();
+  c.fillStyle = 'rgba(255,255,255,0.93)';
+  c.strokeStyle = '#98a4b3'; c.lineWidth = 1*k;
+  c.beginPath(); c.roundRect(x, y, w, h, 6*k); c.fill(); c.stroke();
+  c.fillStyle = '#1a355e'; c.font = `bold ${11.5*k}px Segoe UI, sans-serif`;
+  c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText('Noise level (dBA)', x + 9*k, y + 8*k);
+  c.font = `${11*k}px Segoe UI, sans-serif`;
+  for (let r = 0; r < rows; r++) {
+    const bi = rows - 1 - r;                 // highest band on top
+    const ry = y + 26*k + r*rh;
+    c.fillStyle = colors[bi];
+    c.fillRect(x + 9*k, ry, 20*k, 12*k);
+    c.strokeStyle = '#777'; c.lineWidth = 0.7*k; c.strokeRect(x + 9*k, ry, 20*k, 12*k);
+    c.fillStyle = '#222';
+    c.fillText(bandLabel(bi) + ' dBA', x + 36*k, ry + 1*k);
+  }
+  c.restore();
+  return h;
+}
+function drawScaleBar(c, x, yBottom, k, pxScale) {
+  // pxScale: how many drawing px equal one image px (1 for export; view.scale for screen)
+  if (!calib) return;
+  const targetPx = 130 * k;                       // desired bar length in drawing px
+  const unitsTarget = targetPx / (calib.pxPerUnit * pxScale);
+  const L = niceNum(unitsTarget);
+  const barPx = L * calib.pxPerUnit * pxScale;
+  c.save();
+  c.fillStyle = 'rgba(255,255,255,0.93)'; c.strokeStyle = '#98a4b3'; c.lineWidth = 1*k;
+  const w = barPx + 24*k, h = 30*k, y = yBottom - h;
+  c.beginPath(); c.roundRect(x, y, w, h, 5*k); c.fill(); c.stroke();
+  c.strokeStyle = '#111'; c.lineWidth = 2*k;
+  c.beginPath();
+  c.moveTo(x + 12*k, y + 19*k); c.lineTo(x + 12*k + barPx, y + 19*k);
+  c.moveTo(x + 12*k, y + 14*k); c.lineTo(x + 12*k, y + 24*k);
+  c.moveTo(x + 12*k + barPx, y + 14*k); c.lineTo(x + 12*k + barPx, y + 24*k);
+  c.stroke();
+  c.fillStyle = '#111'; c.font = `${10.5*k}px Segoe UI, sans-serif`;
+  c.textAlign = 'center'; c.textBaseline = 'bottom';
+  c.fillText(`${L} ${calib.unit}`, x + 12*k + barPx/2, y + 13*k);
+  c.restore();
+}
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  if (cv.width !== cw*dpr || cv.height !== ch*dpr) { cv.width = cw*dpr; cv.height = ch*dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+
+  if (!baseImg) {
+    ctx.fillStyle = '#e9ebee'; ctx.font = '15px Segoe UI, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Load a floor plan (PNG / JPG / PDF) or click "Load demo"', cw/2, ch/2);
+    return;
+  }
+  ctx.save();
+  ctx.translate(view.tx, view.ty);
+  ctx.scale(view.scale, view.scale);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, imgW, imgH);
+  ctx.drawImage(baseImg, 0, 0, imgW, imgH);
+  drawMapLayers(ctx, 1 / view.scale);
+
+  // origin marker
+  if (calib && calib.originSet) {
+    const k = 1 / view.scale;
+    ctx.strokeStyle = '#00695c'; ctx.lineWidth = 2*k;
+    ctx.beginPath();
+    ctx.moveTo(calib.ox - 10*k, calib.oy); ctx.lineTo(calib.ox + 10*k, calib.oy);
+    ctx.moveTo(calib.ox, calib.oy - 10*k); ctx.lineTo(calib.ox, calib.oy + 10*k);
+    ctx.stroke();
+    ctx.font = `bold ${10*k}px Segoe UI, sans-serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.lineWidth = 3*k; ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeText('0,0', calib.ox + 6*k, calib.oy + 5*k);
+    ctx.fillStyle = '#00695c'; ctx.fillText('0,0', calib.ox + 6*k, calib.oy + 5*k);
+  }
+  // calibration feedback
+  if (mode === 'cal' && calClicks.length >= 1) {
+    const k = 1 / view.scale;
+    ctx.strokeStyle = '#d81b60'; ctx.lineWidth = 2*k; ctx.setLineDash([6*k, 4*k]);
+    ctx.beginPath();
+    ctx.moveTo(calClicks[0][0], calClicks[0][1]);
+    const end = calClicks[1] || (mouseImg ? [mouseImg.x, mouseImg.y] : calClicks[0]);
+    ctx.lineTo(end[0], end[1]); ctx.stroke(); ctx.setLineDash([]);
+    for (const cp of calClicks) { ctx.beginPath(); ctx.arc(cp[0], cp[1], 4*k, 0, Math.PI*2); ctx.fillStyle = '#d81b60'; ctx.fill(); }
+  }
+  ctx.restore();
+
+  if (S.showLegend && overlay) drawLegend(ctx, cw - 168, 12, 1);
+  drawScaleBar(ctx, 12, ch - 12, 1, view.scale);
+}
+
+/* ======================= recompute pipeline ========================= */
+let rcT = null;
+function recompute(now) {
+  clearTimeout(rcT);
+  const run = () => { computeField(); buildOverlay(); computeContours(); draw(); };
+  if (now) run(); else rcT = setTimeout(run, 120);
+}
+
+/* ========================= view / transforms ======================== */
+function toImg(e) {
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  return { x: (mx - view.tx) / view.scale, y: (my - view.ty) / view.scale, mx, my };
+}
+function fitView() {
+  if (!baseImg) return;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  view.scale = Math.min(cw / imgW, ch / imgH) * 0.96;
+  view.tx = (cw - imgW * view.scale) / 2;
+  view.ty = (ch - imgH * view.scale) / 2;
+  draw();
+}
+function zoomAt(f, mx, my) {
+  const ns = clamp(view.scale * f, 0.03, 30);
+  view.tx = mx - (mx - view.tx) * ns / view.scale;
+  view.ty = my - (my - view.ty) * ns / view.scale;
+  view.scale = ns;
+  draw();
+}
+
+/* =========================== interaction ============================ */
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect();
+  zoomAt(e.deltaY < 0 ? 1.12 : 1/1.12, e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+
+cv.addEventListener('mousedown', e => {
+  if (!baseImg || e.button !== 0) return;
+  const p = toImg(e);
+  if (mode === 'pan') {
+    // hit-test a marker first (sources, then measurement points)
+    const hitS = sources.find(s => Math.hypot(s.x - p.x, s.y - p.y) * view.scale < 11);
+    if (hitS) { drag = { type: 'src', pt: hitS }; return; }
+    const hit = points.find(pt => Math.hypot(pt.x - p.x, pt.y - p.y) * view.scale < 11);
+    if (hit) { drag = { type: 'pt', pt: hit }; return; }
+    drag = { type: 'pan', sx: e.clientX, sy: e.clientY, tx: view.tx, ty: view.ty };
+  } else if (mode === 'addsrc') {
+    if (p.x < 0 || p.y < 0 || p.x > imgW || p.y > imgH) return;
+    pendingSrc = { x: p.x, y: p.y };
+    const m = $('srcModal');
+    m.style.left = clamp(p.mx + 12, 4, wrap.clientWidth - 240) + 'px';
+    m.style.top  = clamp(p.my - 10, 4, wrap.clientHeight - 190) + 'px';
+    $('smLabel').value = 'S' + nextSrcId;
+    $('smDb').value = '';
+    $('smUnit').textContent = calib ? calib.unit : 'm';
+    m.classList.remove('hidden');
+    $('smDb').focus();
+  } else if (mode === 'add') {
+    if (p.x < 0 || p.y < 0 || p.x > imgW || p.y > imgH) return;
+    pendingPt = { x: p.x, y: p.y };
+    const m = $('ptModal');
+    m.style.left = clamp(p.mx + 12, 4, wrap.clientWidth - 240) + 'px';
+    m.style.top  = clamp(p.my - 10, 4, wrap.clientHeight - 160) + 'px';
+    $('pmLabel').value = 'P' + nextId;
+    $('pmDb').value = '';
+    m.classList.remove('hidden');
+    $('pmDb').focus();
+  } else if (mode === 'origin') {
+    if (p.x < 0 || p.y < 0 || p.x > imgW || p.y > imgH) return;
+    calib.ox = p.x; calib.oy = p.y; calib.originSet = true;
+    updateCalibInfo(); setMode('pan');
+  } else if (mode === 'cal') {
+    calClicks.push([p.x, p.y]);
+    if (calClicks.length === 2) {
+      const m = $('calModal');
+      m.style.left = clamp(p.mx + 12, 4, wrap.clientWidth - 240) + 'px';
+      m.style.top  = clamp(p.my - 10, 4, wrap.clientHeight - 140) + 'px';
+      m.classList.remove('hidden');
+      $('cmDist').focus();
+    }
+    draw();
+  }
+});
+window.addEventListener('mousemove', e => {
+  if (baseImg) {
+    const r = cv.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+      mouseImg = toImg(e);
+      updateStatus();
+      if (mode === 'cal' && calClicks.length === 1) draw();
+    }
+  }
+  if (!drag) return;
+  if (drag.type === 'pan') {
+    view.tx = drag.tx + e.clientX - drag.sx;
+    view.ty = drag.ty + e.clientY - drag.sy;
+    draw();
+  } else if (drag.type === 'pt' || drag.type === 'src') {
+    const p = toImg(e);
+    drag.pt.x = clamp(p.x, 0, imgW); drag.pt.y = clamp(p.y, 0, imgH);
+    draw(); recompute();
+  }
+});
+window.addEventListener('mouseup', () => {
+  if (drag && drag.type === 'pt') rebuildPtTable();
+  if (drag && drag.type === 'src') rebuildSrcTable();
+  drag = null;
+});
+window.addEventListener('resize', draw);
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+    if (e.key === 'Enter' && !$('ptModal').classList.contains('hidden') &&
+        (e.target.id === 'pmDb' || e.target.id === 'pmLabel')) $('pmOk').click();
+    if (e.key === 'Enter' && !$('srcModal').classList.contains('hidden') &&
+        (e.target.id === 'smDb' || e.target.id === 'smRef' || e.target.id === 'smLabel')) $('smOk').click();
+    if (e.key === 'Enter' && !$('calModal').classList.contains('hidden') && e.target.id === 'cmDist') $('cmOk').click();
+    if (e.key === 'Escape') { closeModals(); }
+    return;
+  }
+  if (e.key === 'v' || e.key === 'V') setMode('pan');
+  if (e.key === 'a' || e.key === 'A') setMode('add');
+  if ((e.key === 's' || e.key === 'S') && calib) setMode('addsrc');
+  if (e.key === 'c' || e.key === 'C') setMode('cal');
+  if (e.key === 'Escape') closeModals();
+});
+function closeModals() {
+  $('ptModal').classList.add('hidden'); $('calModal').classList.add('hidden'); $('srcModal').classList.add('hidden');
+  pendingPt = null; pendingSrc = null; calClicks = []; draw();
+}
+function updateStatus() {
+  if (!baseImg || !mouseImg) return;
+  let s = `x ${Math.round(mouseImg.x)} px, y ${Math.round(mouseImg.y)} px`;
+  const u = toUnits(mouseImg.x, mouseImg.y);
+  if (u) s += `  |  x ${u.ux.toFixed(1)}, y ${u.uy.toFixed(1)} ${calib.unit}`;
+  if (grid && mouseImg.x >= 0 && mouseImg.y >= 0 && mouseImg.x <= imgW && mouseImg.y <= imgH) {
+    const v = valueAt(mouseImg.x, mouseImg.y);
+    if (!isNaN(v)) s += `  |  est. ${v.toFixed(1)} dBA`;
+  }
+  s += `  |  ${points.length} measurement${points.length === 1 ? '' : 's'}`;
+  $('status').textContent = s;
+}
+
+/* ============================ modes ================================= */
+function setMode(m) {
+  mode = m; calClicks = []; closeModals();
+  for (const [id, mm] of [['modePan','pan'], ['modeAdd','add'], ['modeSrc','addsrc'], ['modeCal','cal']])
+    $(id).classList.toggle('active', mm === m);
+  cv.style.cursor = m === 'pan' ? 'grab' : 'crosshair';
+  draw();
+}
+$('modePan').onclick = () => setMode('pan');
+$('modeAdd').onclick = () => setMode('add');
+$('modeSrc').onclick = () => {
+  if (!calib) { alert('Calibrate the scale first (Section 6) — source distances are computed in real units.'); return; }
+  setMode('addsrc');
+};
+$('modeCal').onclick = () => setMode('cal');
+$('btnCalib').onclick = () => setMode('cal');
+$('btnOrigin').onclick = () => {
+  if (!calib) { alert('Calibrate the scale first (Section 6), then set the origin.'); return; }
+  setMode('origin');
+};
+$('btnFit').onclick = fitView;
+$('btnZoomIn').onclick  = () => zoomAt(1.25, wrap.clientWidth/2, wrap.clientHeight/2);
+$('btnZoomOut').onclick = () => zoomAt(0.8,  wrap.clientWidth/2, wrap.clientHeight/2);
+
+/* ====================== point modal / calibration =================== */
+$('pmOk').onclick = () => {
+  const db = parseFloat($('pmDb').value);
+  if (!pendingPt || isNaN(db)) { $('pmDb').focus(); return; }
+  points.push({ id: nextId++, label: $('pmLabel').value || ('P' + nextId), x: pendingPt.x, y: pendingPt.y, db });
+  $('ptModal').classList.add('hidden'); pendingPt = null;
+  rebuildPtTable(); recompute(true);
+};
+$('pmCancel').onclick = closeModals;
+$('smOk').onclick = () => {
+  const db = parseFloat($('smDb').value), ref = parseFloat($('smRef').value);
+  if (!pendingSrc || isNaN(db) || isNaN(ref) || ref <= 0) { $('smDb').focus(); return; }
+  sources.push({ id: nextSrcId++, label: $('smLabel').value || ('S' + nextSrcId),
+                 x: pendingSrc.x, y: pendingSrc.y, db, refDist: ref });
+  $('srcModal').classList.add('hidden'); pendingSrc = null;
+  rebuildSrcTable(); recompute(true);
+};
+$('smCancel').onclick = closeModals;
+$('cmOk').onclick = () => {
+  const d = parseFloat($('cmDist').value);
+  if (isNaN(d) || d <= 0 || calClicks.length < 2) return;
+  const pxLen = Math.hypot(calClicks[1][0]-calClicks[0][0], calClicks[1][1]-calClicks[0][1]);
+  const prevOx = calib ? calib.ox : 0, prevOy = calib ? calib.oy : imgH;  // keep origin if re-calibrating
+  calib = { pxPerUnit: pxLen / d, unit: $('cmUnit').value, dist: d,
+            x1: calClicks[0][0], y1: calClicks[0][1], x2: calClicks[1][0], y2: calClicks[1][1],
+            ox: prevOx, oy: prevOy };
+  updateCalibInfo();
+  $('calModal').classList.add('hidden'); calClicks = [];
+  setMode('pan');
+};
+$('cmCancel').onclick = closeModals;
+function updateCalibInfo() {
+  $('calibInfo').textContent = calib ? `${calib.pxPerUnit.toFixed(2)} px/${calib.unit}` : 'not set';
+  $('originInfo').textContent = calib && calib.originSet ? 'origin set' : '';
+  rebuildPtTable();
+}
+
+/* ========================== point table ============================ */
+function rebuildPtTable() {
+  const t = $('ptTable'); t.innerHTML = '';
+  for (const p of points) {
+    const row = document.createElement('div'); row.className = 'ptRow';
+    const lbl = document.createElement('input'); lbl.className = 'lbl'; lbl.value = p.label;
+    lbl.onchange = () => { p.label = lbl.value; };
+    const db = document.createElement('input'); db.className = 'db'; db.type = 'number'; db.step = '0.1'; db.value = p.db;
+    db.onchange = () => { const v = parseFloat(db.value); if (!isNaN(v)) { p.db = v; recompute(); } };
+    const xy = document.createElement('span'); xy.className = 'xy';
+    const u = toUnits(p.x, p.y);
+    xy.textContent = u ? `(${u.ux.toFixed(1)}, ${u.uy.toFixed(1)} ${calib.unit})` : `(${Math.round(p.x)}, ${Math.round(p.y)})`;
+    xy.title = `image pixels: (${Math.round(p.x)}, ${Math.round(p.y)})`;
+    const del = document.createElement('button'); del.textContent = '✕'; del.title = 'Delete';
+    del.onclick = () => { points = points.filter(q => q !== p); rebuildPtTable(); recompute(true); };
+    row.append(lbl, db, xy, del);
+    t.appendChild(row);
+  }
+  $('ptCount').textContent = points.length ? `${points.length} point(s). Values in dBA; drag markers on the map to reposition.` : 'No measurements yet.';
+  updateStatus();
+}
+function rebuildSrcTable() {
+  const t = $('srcTable'); t.innerHTML = '';
+  const unit = calib ? calib.unit : 'm';
+  for (const s of sources) {
+    const row = document.createElement('div'); row.className = 'ptRow';
+    const lbl = document.createElement('input'); lbl.className = 'lbl'; lbl.value = s.label;
+    lbl.onchange = () => { s.label = lbl.value; draw(); };
+    const db = document.createElement('input'); db.className = 'db'; db.type = 'number'; db.step = '0.1'; db.value = s.db;
+    db.title = 'Source level (dBA) at the reference distance';
+    db.onchange = () => { const v = parseFloat(db.value); if (!isNaN(v)) { s.db = v; recompute(); } };
+    const ref = document.createElement('input'); ref.className = 'db'; ref.type = 'number'; ref.step = '0.1'; ref.value = s.refDist;
+    ref.style.width = '46px'; ref.title = `Reference distance (${unit})`;
+    ref.onchange = () => { const v = parseFloat(ref.value); if (!isNaN(v) && v > 0) { s.refDist = v; recompute(); } };
+    const u = document.createElement('span'); u.className = 'xy'; u.style.width = '18px'; u.textContent = unit;
+    const del = document.createElement('button'); del.textContent = '✕'; del.title = 'Delete';
+    del.onclick = () => { sources = sources.filter(q => q !== s); rebuildSrcTable(); recompute(true); };
+    row.append(lbl, db, ref, u, del);
+    t.appendChild(row);
+  }
+  $('srcCount').textContent = sources.length
+    ? `${sources.length} source(s): label, dBA, reference distance. Drag diamonds on the map to reposition.`
+    : 'No sources defined.';
+}
+$('btnClearPts').onclick = () => {
+  if (points.length && !confirm('Remove all measurement points?')) return;
+  points = []; rebuildPtTable(); recompute(true);
+};
+
+/* ============================ bands UI ============================== */
+function rebuildBandsUI() {
+  const el = $('bandList'); el.innerHTML = '';
+  for (let i = colors.length - 1; i >= 0; i--) {
+    const row = document.createElement('div'); row.className = 'bandRow';
+    const col = document.createElement('input'); col.type = 'color'; col.value = colors[i];
+    col.oninput = () => { colors[i] = col.value; recompute(); };
+    const lab = document.createElement('span'); lab.className = 'blabel'; lab.textContent = bandLabel(i) + ' dBA';
+    row.append(col, lab);
+    if (i > 0) {  // lower edge of this band is editable
+      const ed = document.createElement('input'); ed.type = 'number'; ed.step = '1'; ed.value = edges[i-1];
+      ed.title = 'Lower boundary of this band';
+      ed.onchange = () => {
+        const v = parseFloat(ed.value);
+        if (!isNaN(v)) { edges[i-1] = v; edges.sort((a,b) => a-b); rebuildBandsUI(); recompute(); }
+      };
+      const u = document.createElement('span'); u.textContent = '≥';
+      row.append(u, ed);
+    }
+    el.appendChild(row);
+  }
+}
+$('btnAddBand').onclick = () => {
+  edges.push(edges[edges.length-1] + 5);
+  colors.push('#4a148c');
+  rebuildBandsUI(); recompute();
+};
+$('btnDelBand').onclick = () => {
+  if (edges.length <= 1) return;
+  edges.pop(); colors.pop();
+  rebuildBandsUI(); recompute();
+};
+$('btnResetBands').onclick = () => {
+  edges = DEFAULT_EDGES.slice(); colors = DEFAULT_COLORS.slice();
+  rebuildBandsUI(); recompute();
+};
+
+/* ========================= settings wiring ========================== */
+$('selMethod').onchange = e => {
+  S.method = e.target.value;
+  if (S.method === 'source') {
+    if (!calib) alert('The source model needs a calibrated scale — see Section 6.\nThe map will appear once the scale is set and at least one source is placed.');
+    else if (!sources.length) alert('Place at least one noise source first (toolbar: Add source).');
+  }
+  recompute();
+};
+$('rngPower').oninput = e => { S.power = parseFloat(e.target.value); $('valPower').textContent = S.power; recompute(); };
+$('rngGrid').oninput = e => { S.gridRes = parseInt(e.target.value); $('valGrid').textContent = S.gridRes; recompute(); };
+$('numMask').onchange = e => { S.maskDist = Math.max(0, parseFloat(e.target.value) || 0); recompute(); };
+$('selStyle').onchange = e => { S.smooth = e.target.value === 'smooth'; recompute(); };
+$('rngOpacity').oninput = e => { S.opacity = parseFloat(e.target.value); $('valOpacity').textContent = Math.round(S.opacity*100)+'%'; draw(); };
+for (const [id, key] of [['chkContours','showContours'], ['chkClabels','showClabels'],
+                         ['chkMarkers','showMarkers'], ['chkMlabels','showMlabels'], ['chkLegend','showLegend']])
+  $(id).onchange = e => { S[key] = e.target.checked; draw(); };
+$('txtTitle').onchange = () => {};
+
+/* ========================= floor plan load ========================== */
+$('btnLoadPlan').onclick = () => $('filePlan').click();
+$('filePlan').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (/\.pdf$/i.test(f.name)) await loadPdf(f);
+  else {
+    const url = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+    setImage(url, true);
+  }
+};
+async function loadPdf(f) {
+  if (!window.pdfjsLib) {
+    alert('The PDF library did not load. Try again in a moment, or export the floor plan as PNG/JPG and load that.');
+    return;
+  }
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+    const doc = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+    const page = await doc.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(2400 / base.width, 4) });
+    const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    // intent:'print' uses timer-based scheduling — default rAF scheduling stalls in hidden/minimized windows
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp, intent: 'print' }).promise;
+    setImage(c.toDataURL('image/png'), true);
+  } catch (err) {
+    alert('Could not read that PDF: ' + err.message + '\nTry exporting it as PNG/JPG instead.');
+  }
+}
+function setImage(dataURL, resetCalib) {
+  const im = new Image();
+  im.onload = () => {
+    baseImg = im; baseDataURL = dataURL;
+    imgW = im.naturalWidth; imgH = im.naturalHeight;
+    if (resetCalib) { calib = null; updateCalibInfo(); }  // old scale is meaningless on a new plan
+    fitView(); recompute(true); updateStatus();
+  };
+  im.src = dataURL;
+}
+
+/* ============================ CSV I/O =============================== */
+$('btnImportCsv').onclick = () => {
+  if (!baseImg) { alert('Load a floor plan first, so coordinates can be placed.'); return; }
+  if ($('csvUnits').value === 'unit' && !calib) {
+    alert('To import coordinates in meters/feet, first calibrate the scale and set the origin (Section 6).');
+    return;
+  }
+  $('fileCsv').click();
+};
+$('fileCsv').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  const text = await f.text();
+  const coordMode = $('csvUnits').value;
+  let added = 0, skipped = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const c = line.split(/[,;\t]/).map(s => s.trim());
+    let label, x, y, db;
+    if (c.length >= 4 && !isNaN(parseFloat(c[1]))) { label = c[0]; x = parseFloat(c[1]); y = parseFloat(c[2]); db = parseFloat(c[3]); }
+    else if (c.length >= 3) { x = parseFloat(c[0]); y = parseFloat(c[1]); db = parseFloat(c[2]); }
+    if (x === undefined || isNaN(x) || isNaN(y) || isNaN(db)) { skipped++; continue; }  // header rows land here
+    if (coordMode === 'pct') { x = x / 100 * imgW; y = y / 100 * imgH; }
+    else if (coordMode === 'unit') { const c = fromUnits(x, y); x = c.x; y = c.y; }
+    points.push({ id: nextId++, label: label || ('P' + nextId), x, y, db });
+    added++;
+  }
+  rebuildPtTable(); recompute(true);
+  alert(`Imported ${added} point(s)` + (skipped ? ` (${skipped} non-data line(s) skipped)` : '') + '.');
+};
+$('btnExportCsv').onclick = () => {
+  let csv = calib ? `label,x_px,y_px,x_${calib.unit},y_${calib.unit},dBA\n` : 'label,x_px,y_px,dBA\n';
+  for (const p of points) {
+    const base = `${p.label.replace(/,/g, ' ')},${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+    if (calib) { const u = toUnits(p.x, p.y); csv += `${base},${u.ux.toFixed(2)},${u.uy.toFixed(2)},${p.db}\n`; }
+    else csv += `${base},${p.db}\n`;
+  }
+  saveAs('noise-measurements.csv', 'csv', 'CSV file', csv);
+};
+
+/* ========================= project save/open ======================== */
+$('btnSave').onclick = () => {
+  const proj = { app: 'noise-contour-mapper', version: 1,
+    title: $('txtTitle').value, image: baseDataURL, points, nextId, sources, nextSrcId,
+    edges, colors, settings: S, calib };
+  saveAs('noise-project.json', 'json', 'Noise Contour Mapper project', JSON.stringify(proj));
+};
+$('btnOpen').onclick = () => $('fileProj').click();
+$('fileProj').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const proj = JSON.parse(await f.text());
+    if (proj.app !== 'noise-contour-mapper') throw new Error('Not a Noise Contour Mapper project file.');
+    points = proj.points || []; nextId = proj.nextId || (points.length + 1);
+    sources = proj.sources || []; nextSrcId = proj.nextSrcId || (sources.length + 1);
+    edges = proj.edges || DEFAULT_EDGES.slice(); colors = proj.colors || DEFAULT_COLORS.slice();
+    Object.assign(S, proj.settings || {});
+    calib = proj.calib || null;
+    $('txtTitle').value = proj.title || 'Noise Contour Map';
+    // sync controls
+    $('selMethod').value = S.method; $('rngPower').value = S.power; $('valPower').textContent = S.power;
+    $('rngGrid').value = S.gridRes; $('valGrid').textContent = S.gridRes;
+    $('numMask').value = S.maskDist;
+    $('selStyle').value = S.smooth ? 'smooth' : 'banded';
+    $('rngOpacity').value = S.opacity; $('valOpacity').textContent = Math.round(S.opacity*100)+'%';
+    $('chkContours').checked = S.showContours; $('chkClabels').checked = S.showClabels;
+    $('chkMarkers').checked = S.showMarkers; $('chkMlabels').checked = S.showMlabels; $('chkLegend').checked = S.showLegend;
+    updateCalibInfo(); rebuildBandsUI(); rebuildPtTable(); rebuildSrcTable();
+    if (proj.image) setImage(proj.image); else { baseImg = null; draw(); }
+  } catch (err) { alert('Could not open project: ' + err.message); }
+};
+
+/* ============================ PNG export ============================ */
+$('btnPng').onclick = () => {
+  if (!baseImg) { alert('Load a floor plan first.'); return; }
+  const ec = document.createElement('canvas'); ec.width = imgW; ec.height = imgH;
+  const c = ec.getContext('2d');
+  const k = Math.max(imgW, imgH) / 1200;   // size unit so annotation weight matches screen look
+  c.fillStyle = '#fff'; c.fillRect(0, 0, imgW, imgH);
+  c.drawImage(baseImg, 0, 0, imgW, imgH);
+  drawMapLayers(c, k);
+  if (S.showLegend && overlay) drawLegend(c, imgW - 160*k, 12*k, k);
+  drawScaleBar(c, 12*k, imgH - 12*k, k, 1);
+  // title block
+  const title = $('txtTitle').value.trim();
+  if (title) {
+    c.font = `bold ${15*k}px Segoe UI, sans-serif`;
+    const tw = c.measureText(title).width;
+    c.fillStyle = 'rgba(255,255,255,0.93)';
+    c.strokeStyle = '#98a4b3'; c.lineWidth = 1*k;
+    c.beginPath(); c.roundRect(12*k, 12*k, tw + 22*k, 44*k, 6*k); c.fill(); c.stroke();
+    c.fillStyle = '#1a355e'; c.textAlign = 'left'; c.textBaseline = 'top';
+    c.fillText(title, 22*k, 19*k);
+    c.font = `${10*k}px Segoe UI, sans-serif`; c.fillStyle = '#666';
+    const meth = S.method === 'source' ? `Source model + residual correction (${sources.length} sources)`
+               : S.method === 'rbf' ? 'RBF (multiquadric)' : `IDW (p=${S.power})`;
+    c.fillText(`${new Date().toISOString().slice(0,10)}  ·  ${points.length} measurements  ·  ${meth}`, 22*k, 38*k);
+  }
+  const b64 = ec.toDataURL('image/png').split(',')[1];
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  saveAs('noise-contour-map.png', 'png', 'PNG image', bytes);
+};
+
+/* ============================= demo ================================= */
+$('btnDemo').onclick = () => {
+  const W = 1400, H = 900;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#444'; g.lineWidth = 6;
+  g.strokeRect(40, 40, W - 80, H - 80);
+  g.lineWidth = 4;
+  const wall = (x1, y1, x2, y2) => { g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+  wall(520, 40, 520, 860); wall(900, 40, 900, 860);
+  wall(40, 500, 900, 500); wall(900, 300, 1360, 300);
+  g.fillStyle = '#e8e8e8';
+  g.fillRect(90, 90, 130, 90); g.fillRect(280, 200, 130, 90); g.fillRect(120, 330, 130, 90); // presses
+  g.fillRect(1000, 90, 150, 100);                                                            // compressor
+  g.fillStyle = '#999'; g.font = 'bold 26px Segoe UI, sans-serif'; g.textAlign = 'center';
+  g.fillText('STAMPING / PRESS', 280, 480);
+  g.fillText('ASSEMBLY', 710, 480);
+  g.fillText('COMPRESSOR', 1130, 270);
+  g.fillText('WAREHOUSE', 1130, 830);
+  g.fillText('OFFICES / BREAK', 280, 830);
+  g.fillText('PACKAGING', 710, 830);
+  setImage(c.toDataURL('image/png'));
+  points = [
+    ['SLM-1', 150, 150, 97.5], ['SLM-2', 330, 250, 95.2], ['SLM-3', 450, 120, 93.8], ['SLM-4', 200, 420, 91.4],
+    ['SLM-5', 600, 150, 86.2], ['SLM-6', 750, 320, 84.7], ['SLM-7', 850, 120, 87.9], ['SLM-8', 860, 430, 83.1],
+    ['SLM-9', 1090, 150, 93.6], ['SLM-10', 1260, 220, 90.8],
+    ['SLM-11', 1000, 600, 79.4], ['SLM-12', 1260, 760, 76.2], ['SLM-13', 1150, 430, 81.0],
+    ['SLM-14', 150, 700, 68.5], ['SLM-15', 400, 590, 72.3],
+    ['SLM-16', 650, 700, 80.6], ['SLM-17', 830, 790, 78.9]
+  ].map(([label, x, y, db]) => ({ id: nextId++, label, x, y, db }));
+  calib = { pxPerUnit: 16, unit: 'm', dist: 82.5, x1: 40, y1: 880, x2: 1360, y2: 880,
+            ox: 40, oy: 860, originSet: true };  // demo origin: bottom-left building corner
+  sources = [
+    { id: nextSrcId++, label: 'Press A', x: 155, y: 135, db: 101, refDist: 1 },
+    { id: nextSrcId++, label: 'Press B', x: 345, y: 245, db: 99, refDist: 1 },
+    { id: nextSrcId++, label: 'Compressor', x: 1075, y: 140, db: 99, refDist: 1 }
+  ];
+  rebuildSrcTable();
+  updateCalibInfo();
+  $('txtTitle').value = 'Demo Facility — Noise Contour Map';
+  rebuildPtTable(); recompute(true);
+};
+
+/* ============================== init ================================ */
+rebuildBandsUI();
+rebuildPtTable();
+rebuildSrcTable();
+setMode('pan');
+draw();
+</script>
+</body>
+</html>

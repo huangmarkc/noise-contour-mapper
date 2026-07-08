@@ -1,0 +1,11 @@
+# Dependencies and build caches
+node_modules/
+__pycache__/
+src-tauri/target/
+
+# Built binaries (rebuilt from source; too large for the repo)
+*.exe
+
+# OS cruft
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Noise Contour Mapper",
+  "version": "1.0.0",
+  "identifier": "com.erm.noisecontourmapper",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Noise Contour Mapper",
+        "width": 1500,
+        "height": 950,
+        "minWidth": 1000,
+        "minHeight": 650,
+        "maximized": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico"]
+  }
+}
