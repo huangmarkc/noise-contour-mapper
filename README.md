@@ -65,3 +65,12 @@ purpose); the exe and NSIS installer land under `...\release\` and
   (e.g., the 85 dBA action level) with additional measurements before making program
   decisions.
 - Click **Load demo** to see a worked example on a synthetic facility.
+
+## License & ownership
+
+Copyright © 2026 Mark Huang. All rights reserved. This software and all associated
+materials are the exclusive property of Mark Huang; no permission is granted to copy,
+modify, distribute, or create derivative works without prior written consent — see
+[LICENSE](LICENSE) for the full notice, including the no-warranty disclaimer.
+Exception: `ui/vendor/` contains Mozilla's pdf.js, © Mozilla Foundation and
+contributors, under the Apache 2.0 license.

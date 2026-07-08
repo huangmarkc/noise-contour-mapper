@@ -1,0 +1,44 @@
+NOISE CONTOUR MAPPER — PROPRIETARY LICENSE AND NOTICE
+
+Copyright © 2026 Mark Huang. All rights reserved.
+
+1. OWNERSHIP
+
+This software, including without limitation its source code, user interface,
+design, methodology implementation, documentation, sample data, and all
+associated materials (collectively, the "Software"), is and shall remain the
+exclusive property of Mark Huang (the "Owner"), except for the third-party
+components identified in Section 4.
+
+2. NO LICENSE GRANTED
+
+No right or license, express or implied, is granted to any person to copy,
+modify, merge, publish, distribute, sublicense, sell, or create derivative
+works of the Software, in whole or in part, without the prior written
+permission of the Owner. Public availability of this repository or of the
+hosted application is provided for viewing and lawful use of the hosted tool
+only and does not constitute a grant of any other rights. Any use not
+expressly permitted is prohibited.
+
+3. NO WARRANTY; LIMITATION OF LIABILITY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, AND NON-INFRINGEMENT. OUTPUTS OF
+THE SOFTWARE ARE INTERPOLATED ESTIMATES INTENDED FOR VISUALIZATION AND
+PLANNING ONLY; THEY ARE NOT A SUBSTITUTE FOR PERSONAL NOISE DOSIMETRY,
+REGULATORY EXPOSURE ASSESSMENT, OR THE JUDGMENT OF A QUALIFIED PROFESSIONAL.
+IN NO EVENT SHALL THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF OR RELIANCE
+ON ITS OUTPUTS.
+
+4. THIRD-PARTY COMPONENTS
+
+The files under ui/vendor/ (pdf.js: pdf.min.js and pdf.worker.min.js) are
+copyright © Mozilla Foundation and contributors and are licensed under the
+Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
+They are not the property of the Owner, and nothing in this notice restricts
+the rights granted by their own license.
+
+For permission requests, contact: huangmarkc@gmail.com

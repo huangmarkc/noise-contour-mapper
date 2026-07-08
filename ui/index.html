@@ -174,7 +174,14 @@
         <p>5. Drag markers (in Pan mode) to fine-tune positions. Edit values in the point list.</p>
         <p>6. Export the finished map as PNG for reports, or save the project as JSON to continue later.</p>
         <p>Interpolated values are estimates between measurements &mdash; verify critical boundaries (e.g., the 85&nbsp;dBA action level) with additional measurements.</p>
+        <p>&copy; 2026 Mark Huang. All rights reserved. This software and its methodology implementation are the exclusive property of Mark Huang; no copying, modification, or redistribution without prior written permission. Provided &ldquo;as is&rdquo; without warranty of any kind.</p>
       </details>
+    </div>
+
+    <div class="hint" style="text-align:center; margin-top: 2px;">
+      &copy; 2026 Mark Huang. All rights reserved.<br>
+      Proprietary software &mdash; no reuse without written permission.<br>
+      Provided &ldquo;as is&rdquo; without warranty; outputs are planning estimates only.
     </div>
   </aside>
 
@@ -1124,7 +1131,7 @@ $('btnPng').onclick = () => {
     c.font = `${10*k}px Segoe UI, sans-serif`; c.fillStyle = '#666';
     const meth = S.method === 'source' ? `Source model + residual correction (${sources.length} sources)`
                : S.method === 'rbf' ? 'RBF (multiquadric)' : `IDW (p=${S.power})`;
-    c.fillText(`${new Date().toISOString().slice(0,10)}  ·  ${points.length} measurements  ·  ${meth}`, 22*k, 38*k);
+    c.fillText(`${new Date().toISOString().slice(0,10)}  ·  ${points.length} measurements  ·  ${meth}  ·  © 2026 Mark Huang`, 22*k, 38*k);
   }
   const b64 = ec.toDataURL('image/png').split(',')[1];
   const bin = atob(b64);
