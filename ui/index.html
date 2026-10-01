@@ -160,6 +160,7 @@
         <button id="btnOpen" class="sec2">Open project</button>
       </div>
       <div class="row"><button id="btnPng">Export map as PNG</button></div>
+      <div class="hint" id="dataNotice"><b>Your data is not stored.</b> Floor plans and measurements exist only in this window &mdash; nothing is uploaded or kept by this app, and closing or reloading the page erases them. Use <b>Save project</b> to keep a copy on your computer or your own cloud drive.</div>
       <input type="file" id="fileProj" accept=".json" class="hidden">
     </div>
 
@@ -172,7 +173,7 @@
         <p>4. The heat map and contours update live. Tune method, bands, and opacity.</p>
         <p>Alternative method: place known equipment as <b>noise sources</b> (level at a reference distance) and choose <b>Source model + residuals</b>. Levels are predicted with the inverse square law and energy addition, then calibrated to your measurements by interpolating the residuals. The result matches your readings at each SLM point while following the physics between them. It is a planning/visualization aid, not a substitute for dosimetry.</p>
         <p>5. Drag markers (in Pan mode) to fine-tune positions. Edit values in the point list.</p>
-        <p>6. Export the finished map as PNG for reports, or save the project as JSON to continue later.</p>
+        <p>6. Export the finished map as PNG for reports, or save the project as a JSON file to continue later. You choose where each file goes (your computer or your own cloud drive). The app keeps no copy, so anything not saved is lost when the page closes.</p>
         <p>Interpolated values are estimates between measurements &mdash; verify critical boundaries (e.g., the 85&nbsp;dBA action level) with additional measurements.</p>
         <p>&copy; 2026 Mark Huang. All rights reserved. This software and its methodology implementation are the exclusive property of Mark Huang; no copying, modification, or redistribution without prior written permission. Provided &ldquo;as is&rdquo; without warranty of any kind.</p>
       </details>
@@ -181,7 +182,8 @@
     <div class="hint" style="text-align:center; margin-top: 2px;">
       &copy; 2026 Mark Huang. All rights reserved.<br>
       Proprietary software &mdash; no reuse without written permission.<br>
-      Provided &ldquo;as is&rdquo; without warranty; outputs are planning estimates only.
+      Provided &ldquo;as is&rdquo; without warranty; outputs are planning estimates only.<br>
+      No user data is collected, uploaded, or stored by this software.
     </div>
   </aside>
 
@@ -281,26 +283,42 @@ function fromUnits(ux, uy) {
   return { x: o.ox + ux * calib.pxPerUnit, y: o.oy - uy * calib.pxPerUnit };
 }
 function download(name, url) { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); }
+const MIME = { json: 'application/json', csv: 'text/csv', png: 'image/png' };
 async function saveAs(filename, ext, desc, data) {
-  // data: string (text files) or Uint8Array (binary). In the desktop app, use the
-  // native save dialog + Rust write; in a browser, fall back to an anchor download.
+  // data: string (text files) or Uint8Array (binary). Returns true once the file is saved.
+  // The user always picks the location: the native dialog in the desktop app, the
+  // browser's Save dialog (File System Access API) on the web. Browsers without that
+  // API (Firefox, Safari) get a plain download.
   const T = window.__TAURI__;
   if (T && T.dialog) {
     try {
       const path = await T.dialog.save({ defaultPath: filename, filters: [{ name: desc, extensions: [ext] }] });
-      if (!path) return;
+      if (!path) return false;
       const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
       let bin = '';
       for (let i = 0; i < bytes.length; i += 0x8000)
         bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
       await T.core.invoke('write_file', { path, dataBase64: btoa(bin) });
-    } catch (e) { alert('Could not save the file: ' + e); }
-    return;
+      return true;
+    } catch (e) { alert('Could not save the file: ' + e); return false; }
+  }
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName: filename,
+        types: [{ description: desc, accept: { [MIME[ext]]: ['.' + ext] } }] });
+      const w = await handle.createWritable();
+      await w.write(data); await w.close();
+      return true;
+    } catch (e) {
+      if (e.name === 'AbortError') return false;   // user cancelled the dialog
+      // e.g. SecurityError inside a sandboxed frame: fall through to a download
+    }
   }
   const url = typeof data === 'string'
     ? 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(data)
     : URL.createObjectURL(new Blob([data]));
   download(filename, url);
+  return true;
 }
 
 function bandLabel(i) {
@@ -1029,6 +1047,7 @@ function setImage(dataURL, resetCalib) {
     imgW = im.naturalWidth; imgH = im.naturalHeight;
     if (resetCalib) { calib = null; updateCalibInfo(); }  // old scale is meaningless on a new plan
     fitView(); recompute(true); updateStatus();
+    if (markSavedOnLoad) { markSavedOnLoad = false; savedSnapshot = projectJSON(); }
   };
   im.src = dataURL;
 }
@@ -1075,11 +1094,23 @@ $('btnExportCsv').onclick = () => {
 };
 
 /* ========================= project save/open ======================== */
-$('btnSave').onclick = () => {
-  const proj = { app: 'noise-contour-mapper', version: 1,
+// Nothing is ever persisted by the app itself, so track whether the open work matches
+// the last saved/opened project and warn before the page closes if it doesn't.
+let savedSnapshot = null;        // project JSON as of the last save/open/demo
+let markSavedOnLoad = false;     // take the snapshot once the pending image finishes loading
+function projectJSON() {
+  return JSON.stringify({ app: 'noise-contour-mapper', version: 1,
     title: $('txtTitle').value, image: baseDataURL, points, nextId, sources, nextSrcId,
-    edges, colors, settings: S, calib };
-  saveAs('noise-project.json', 'json', 'Noise Contour Mapper project', JSON.stringify(proj));
+    edges, colors, settings: S, calib });
+}
+window.addEventListener('beforeunload', e => {
+  if (!baseImg && !points.length && !sources.length) return;
+  if (projectJSON() === savedSnapshot) return;
+  e.preventDefault(); e.returnValue = '';
+});
+$('btnSave').onclick = async () => {
+  const json = projectJSON();
+  if (await saveAs('noise-project.json', 'json', 'Noise Contour Mapper project', json)) savedSnapshot = json;
 };
 $('btnOpen').onclick = () => $('fileProj').click();
 $('fileProj').onchange = async e => {
@@ -1103,7 +1134,8 @@ $('fileProj').onchange = async e => {
     $('chkContours').checked = S.showContours; $('chkClabels').checked = S.showClabels;
     $('chkMarkers').checked = S.showMarkers; $('chkMlabels').checked = S.showMlabels; $('chkLegend').checked = S.showLegend;
     updateCalibInfo(); rebuildBandsUI(); rebuildPtTable(); rebuildSrcTable();
-    if (proj.image) setImage(proj.image); else { baseImg = null; draw(); }
+    if (proj.image) { markSavedOnLoad = true; setImage(proj.image); }
+    else { baseImg = null; draw(); savedSnapshot = projectJSON(); }
   } catch (err) { alert('Could not open project: ' + err.message); }
 };
 
@@ -1162,6 +1194,7 @@ $('btnDemo').onclick = () => {
   g.fillText('WAREHOUSE', 1130, 830);
   g.fillText('OFFICES / BREAK', 280, 830);
   g.fillText('PACKAGING', 710, 830);
+  markSavedOnLoad = true;   // demo data isn't worth a leave-page warning
   setImage(c.toDataURL('image/png'));
   points = [
     ['SLM-1', 150, 150, 97.5], ['SLM-2', 330, 250, 95.2], ['SLM-3', 450, 120, 93.8], ['SLM-4', 200, 420, 91.4],

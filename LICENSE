@@ -8,7 +8,7 @@ This software, including without limitation its source code, user interface,
 design, methodology implementation, documentation, sample data, and all
 associated materials (collectively, the "Software"), is and shall remain the
 exclusive property of Mark Huang (the "Owner"), except for the third-party
-components identified in Section 4.
+components identified in Section 5.
 
 2. NO LICENSE GRANTED
 
@@ -33,7 +33,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
 FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF OR RELIANCE
 ON ITS OUTPUTS.
 
-4. THIRD-PARTY COMPONENTS
+4. USER DATA
+
+The Software does not collect, transmit, upload, or retain any data entered
+or loaded by users, including floor plans, measurement data, and project
+files. All processing occurs locally on the user's own device, and such data
+exists only in the user's browser or application window until it is closed.
+The Owner has no access to user data and does not store it. Users are solely
+responsible for saving, storing, backing up, and securing their own files
+(for example, on their own computer or cloud storage), and for complying with
+any confidentiality obligations owed to their clients or employers. The Owner
+accepts no responsibility for the custody, security, retention, or loss of
+any user data.
+
+5. THIRD-PARTY COMPONENTS
 
 The files under ui/vendor/ (pdf.js: pdf.min.js and pdf.worker.min.js) are
 copyright © Mozilla Foundation and contributors and are licensed under the

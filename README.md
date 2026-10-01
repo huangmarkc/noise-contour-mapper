@@ -66,6 +66,14 @@ purpose); the exe and NSIS installer land under `...\release\` and
   decisions.
 - Click **Load demo** to see a worked example on a synthetic facility.
 
+## Your data
+
+The tool collects, uploads, and stores nothing. Floor plans and measurements exist only
+in the open browser tab or app window and are erased when it closes. Users save their
+own work with **Save project** / **Export**, choosing the location (their computer or
+their own cloud drive), and are responsible for those files. The page warns before
+closing if there is unsaved work.
+
 ## License & ownership
 
 Copyright © 2026 Mark Huang. All rights reserved. This software and all associated
