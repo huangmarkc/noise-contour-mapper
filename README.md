@@ -19,6 +19,9 @@ Three options:
 
 ## Workflow
 
+The app has a full step-by-step **user guide** built in: click **? Guide** above the map
+or press <kbd>H</kbd>.
+
 1. **Load floor plan** — PNG, JPG, or PDF (first page is rendered).
 2. **Calibrate scale** (optional) — click two points a known distance apart (e.g., a
    dimensioned wall) and enter the real distance. Adds a scale bar to the map and shows
@@ -26,20 +29,30 @@ Three options:
 3. **Add measurements** — switch to *Add points* and click each SLM location, entering the
    measured dBA. Or import a CSV (`label,x,y,dBA` or `x,y,dBA`, coordinates in pixels or
    percent of the plan). Drag markers in *Pan* mode to reposition; edit values in the list.
-4. **Tune the map** — calculation method (IDW with adjustable power, multiquadric RBF,
+4. **Draw walls and barriers** (optional) — *Draw wall* in the toolbar; click each
+   corner, double-click or Esc to finish, leave gaps for doorways. Ends snap to other
+   walls so corners close. Each wall has a type preset (concrete, acoustic panels,
+   drywall, metal, glass, curtain, partial barrier) with editable sound reduction
+   ("Blocks", dB), absorption (%), and — for partial barriers — height.
+5. **Tune the map** — calculation method (IDW with adjustable power, multiquadric RBF,
    or the source model below), grid resolution, banded vs. smooth gradient, overlay
    opacity, and an optional mask that hides interpolation far from any measurement.
-5. **Source model + residuals (optional)** — place known equipment as point noise
+   With walls, *Measurements don't pass through walls* makes every method measure
+   distance around walls (through openings) rather than through them.
+6. **Source model + residuals (optional)** — place known equipment as point noise
    sources (toolbar → *Add source*), each with its sound level at a reference distance.
    Levels are predicted with the inverse square law (`Lp2 = Lp1 − 20·log10(r2/r1)`,
    0.5 m near-field clamp) and combined by logarithmic energy addition, then calibrated
    against the SLM measurements by IDW-interpolating the residuals
    (`measured − predicted`) and adding them back in dB space. Requires a calibrated
-   scale. The same math is available as a standalone Python module in
-   [noise_model.py](noise_model.py) (verified to produce identical results).
-6. **Noise bands** — defaults are <80, 80–85, 85–90, 90–95, >95 dBA; boundaries and colors
+   scale. With walls, each source also loses each crossed wall's sound reduction, bends
+   around wall ends and over partial barriers (Maekawa screening in the Kurze–Anderson
+   form at 500 Hz, capped at 20 dB), and reflects once off each wall (image sources,
+   reduced by absorption). The same math is available as a standalone Python module in
+   [noise_model.py](noise_model.py) (verified to match the app to within 1e-12 dB).
+7. **Noise bands** — defaults are <80, 80–85, 85–90, 90–95, >95 dBA; boundaries and colors
    are fully editable, and contour lines are drawn at each boundary.
-7. **Export** — PNG of the finished map (with legend, scale bar, title block, date, and
+8. **Export** — PNG of the finished map (with legend, scale bar, title block, date, and
    method note), CSV of the measurement points, or save/open the whole project as JSON.
 
 ## Project layout
@@ -64,7 +77,11 @@ purpose); the exe and NSIS installer land under `...\release\` and
 - Interpolated values are estimates between measurements. Verify critical boundaries
   (e.g., the 85 dBA action level) with additional measurements before making program
   decisions.
-- Click **Load demo** to see a worked example on a synthetic facility.
+- The wall model is first-order: one reflection per wall, no floor/ceiling reflections,
+  no reverberant build-up, single-number (dBA) values. Residual correction against the
+  measurements absorbs much of what it leaves out near the measured locations.
+- Click **Load demo** to see a worked example on a synthetic facility, with walls,
+  doorways, acoustic panels, and a partial barrier.
 
 ## Your data
 

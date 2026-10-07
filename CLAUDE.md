@@ -15,11 +15,26 @@ in the user's browser, and floor plans and measurements are never uploaded anywh
 - `src-tauri/` holds the Tauri v2 shell that wraps `ui/` as a Windows desktop app
   (`Noise Contour Mapper.exe`). The built `.exe` files are gitignored, so rebuild them
   with `npm install` then `npx tauri build` (see README for the output location).
-- `noise_model.py` is a Python reference implementation of the source-model math. It
-  was verified to give results identical to the JS. If the math in `ui/index.html`
-  changes, keep the two in sync.
+- `noise_model.py` is a Python reference implementation of the source-model math,
+  including walls (section 9: `WallModel`, `WalledSourceModel`). It matches the JS to
+  ~1e-12 dB on the demo facility (compare with JS sample values, coordinates divided by
+  px/m, `vertex_offset_m = 0.75/k`, `join_tol_m = 0.5/k`). If the math in
+  `ui/index.html` changes, keep the two in sync.
 - The calculation engine is reviewed and correct. Do not change the acoustics math
   unless Mark asks for it.
+- **Walls (added Oct 2026):** wall segments in image px with a type preset (`WALL_TYPES`),
+  `tl` (dB), `alpha`, and `height` (m; null = full height). Full-height walls block
+  (sum of tl), sound bends around free wall ends (visibility-graph shortest path,
+  Maekawa/Kurze–Anderson screening at 500 Hz, capped 20 dB, lit-side fade near edges),
+  partial barriers screen over the top (source/ear heights default 1.0/1.5 m), and each
+  wall reflects once via image sources that are treated like real sources (blocked,
+  routed around walls, faded at wall ends). With "Measurements don't pass through
+  walls", IDW/RBF/residual distances go around full-height walls; walled-off areas with
+  no reachable reading are blank. The physics grid is cached (`srcGrid`) and only
+  recomputed when sources, walls, scale or wall settings change.
+- **User guide:** the in-app guide (`#guide`, opened with **? Guide** or H) is the main
+  instructions for use. Keep it, the README, and `Noise Contour Mapper - Installation
+  Guide.docx` (Quick Start, calculation sections, troubleshooting) in step with features.
 
 ## Where it is published
 - **Public site:** https://huangmarkc.github.io/noise-contour-mapper/ is served by
@@ -44,8 +59,12 @@ on the title line of exported PNGs. Keep all of them. `ui/vendor/` is Mozilla's 
 under Apache 2.0, which `LICENSE` carves out.
 
 ## Roadmap (Mark's phased plan)
-1. Done: online version (GitHub Pages and Artifact) and the copyright notice.
+1. Done: online version (GitHub Pages and Artifact), the copyright notice, no-storage
+   data handling, and walls/barriers/reflections with the built-in user guide.
 2. Next options, in any order Mark chooses:
+   - **Reverberant-room setting:** per-room diffuse-field term (room size and surface
+     finishes) so levels stop dropping with distance in large hard rooms; it would also
+     soften the line-of-sight "beams" the free-field model shows through doorways.
    - **Environmental/outdoor mode:** simplified ISO 9613-2 propagation (atmospheric
      absorption, ground effect, Maekawa barriers) as another method choice.
    - **Real-map input:** OpenStreetMap underlay (Leaflet) with GPS coordinates.

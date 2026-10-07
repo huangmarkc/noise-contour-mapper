@@ -59,6 +59,41 @@
   .modal h3 { margin: 0 0 8px; font-size: 13px; color: #1a355e; }
   .modal .row { margin: 6px 0; }
   .hidden { display: none !important; }
+
+  /* ---------- walls ---------- */
+  #wallTable { max-height: 260px; overflow-y: auto; margin-top: 6px; }
+  .wallRow { border: 1px solid #e3e6ea; border-radius: 5px; padding: 4px 5px; margin: 4px 0; cursor: pointer; }
+  .wallRow.sel { background: #eaf1fb; border-color: #2b5ea7; }
+  .wallRow .wtop, .wallRow .wbot { display: flex; align-items: center; gap: 4px; }
+  .wallRow .wbot { margin-top: 3px; color: #555; font-size: 11.5px; }
+  .wallRow .wname { font-weight: 600; color: #1a355e; width: 30px; }
+  .wallRow select { flex: 1; min-width: 0; font-size: 11.5px; padding: 2px 3px; }
+  .wallRow input[type=number] { width: 46px; padding: 2px 4px; font-size: 11.5px; }
+  .wallRow button { padding: 1px 7px; background: #e8ecf2; color: #b03a2e; border: 1px solid #d5dae2; }
+  .swatch { display: inline-block; width: 18px; height: 0; border-top: 4px solid; vertical-align: middle; margin-right: 4px; }
+
+  /* ---------- user guide ---------- */
+  #guide { position: absolute; inset: 10px; max-width: 800px; margin: 0 auto; background: #fff; z-index: 30;
+           border: 1px solid #98a4b3; border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.3);
+           display: flex; flex-direction: column; }
+  #guide .ghead { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #dde0e4; }
+  #guide .ghead h2 { margin: 0; font-size: 16px; color: #1a355e; flex: 1; }
+  #guide .gbody { position: relative; overflow-y: auto; padding: 6px 22px 24px; font-size: 13.5px; line-height: 1.55; color: #2a2f36; }
+  #guide h3 { font-size: 14.5px; color: #1a355e; margin: 22px 0 6px; padding-top: 10px; border-top: 1px solid #eceef1; }
+  #guide h3:first-of-type { border-top: none; }
+  #guide h4 { font-size: 13.5px; color: #1a355e; margin: 14px 0 4px; }
+  #guide p, #guide li { max-width: 68ch; }
+  #guide ol, #guide ul { padding-left: 22px; margin: 6px 0; }
+  #guide li { margin: 3px 0; }
+  #guide .tip { background: #f1f6fc; border: 1px solid #d3e1f2; border-radius: 6px; padding: 7px 10px; margin: 10px 0; max-width: 68ch; }
+  #guide .warnbox { background: #fdf3f1; border-color: #efd0ca; }
+  #guide .tblwrap { overflow-x: auto; margin: 8px 0; }
+  #guide table { border-collapse: collapse; font-size: 12.5px; }
+  #guide th, #guide td { border: 1px solid #dde0e4; padding: 4px 8px; text-align: left; vertical-align: top; }
+  #guide th { background: #f4f5f7; color: #1a355e; }
+  #guide td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #guide kbd { border: 1px solid #c6cbd2; border-bottom-width: 2px; border-radius: 3px; padding: 0 5px; font-size: 12px; background: #f8f9fa; }
+  #guide .toc { columns: 2; column-gap: 24px; padding-left: 20px; }
 </style>
 </head>
 <body>
@@ -105,6 +140,16 @@
     </div>
 
     <div class="sec">
+      <h2>2c &middot; Walls &amp; barriers (optional)</h2>
+      <div class="hint">Use <b>Draw wall</b> in the toolbar and click along each wall on the plan. <b>Leave a gap for every doorway</b> &mdash; sound and measurements pass through gaps, not through walls. Double-click or press <kbd>Esc</kbd> to finish a wall.</div>
+      <div class="row"><label>Type for new walls:</label></div>
+      <div class="row"><select id="selWallType" style="flex:1"></select></div>
+      <div id="wallTable"></div>
+      <div class="hint" id="wallCount"></div>
+      <div class="row"><button id="btnClearWalls" class="warn">Remove all walls</button></div>
+    </div>
+
+    <div class="sec">
       <h2>3 &middot; Calculation</h2>
       <div class="row"><label>Method</label>
         <select id="selMethod">
@@ -117,6 +162,13 @@
       <div class="row"><label>Grid resolution</label><input type="range" id="rngGrid" min="60" max="300" step="10" value="160"><span class="val" id="valGrid">160</span></div>
       <div class="row"><label>Mask beyond (px, 0&nbsp;=&nbsp;off)</label><input type="number" id="numMask" min="0" step="10" value="0"></div>
       <div class="hint">Mask hides the interpolation farther than the given distance from any measurement, to avoid extrapolating into unsurveyed areas.</div>
+      <div class="row"><label><input type="checkbox" id="chkWallInterp" checked> Measurements don&rsquo;t pass through walls</label></div>
+      <div class="row"><label><input type="checkbox" id="chkWallBlock" checked> Walls block sound <span class="hint">(source model)</span></label></div>
+      <div class="row"><label><input type="checkbox" id="chkWallReflect" checked> Walls reflect sound <span class="hint">(source model)</span></label></div>
+      <div class="row"><label>Machine height</label><input type="number" id="numSrcH" step="0.1" min="0" value="1"><span class="hUnit">m</span></div>
+      <div class="row"><label>Ear height</label><input type="number" id="numEarH" step="0.1" min="0" value="1.5"><span class="hUnit">m</span></div>
+      <div class="hint">Heights are used only for partial barriers (sound bending over the top).</div>
+      <div class="hint" id="calcNote" style="color:#b03a2e"></div>
     </div>
 
     <div class="sec">
@@ -129,7 +181,8 @@
                        <label><input type="checkbox" id="chkClabels" checked> Contour labels</label></div>
       <div class="row"><label><input type="checkbox" id="chkMarkers" checked> Point markers</label>
                        <label><input type="checkbox" id="chkMlabels" checked> dBA labels</label></div>
-      <div class="row"><label><input type="checkbox" id="chkLegend" checked> Legend</label></div>
+      <div class="row"><label><input type="checkbox" id="chkLegend" checked> Legend</label>
+                       <label><input type="checkbox" id="chkWalls" checked> Walls</label></div>
     </div>
 
     <div class="sec">
@@ -165,18 +218,9 @@
     </div>
 
     <div class="sec">
-      <details>
-        <summary>How to use</summary>
-        <p>1. Load the client floor plan (or a PDF figure &mdash; page 1 is used).</p>
-        <p>2. Optionally calibrate the scale using a known dimension, then set an origin point (a building corner works well). Positions are then handled in real units (x right, y up) instead of pixels.</p>
-        <p>3. Switch to <b>Add points</b> and click each sound-level-meter location; enter the measured dBA. Or import a CSV.</p>
-        <p>4. The heat map and contours update live. Tune method, bands, and opacity.</p>
-        <p>Alternative method: place known equipment as <b>noise sources</b> (level at a reference distance) and choose <b>Source model + residuals</b>. Levels are predicted with the inverse square law and energy addition, then calibrated to your measurements by interpolating the residuals. The result matches your readings at each SLM point while following the physics between them. It is a planning/visualization aid, not a substitute for dosimetry.</p>
-        <p>5. Drag markers (in Pan mode) to fine-tune positions. Edit values in the point list.</p>
-        <p>6. Export the finished map as PNG for reports, or save the project as a JSON file to continue later. You choose where each file goes (your computer or your own cloud drive). The app keeps no copy, so anything not saved is lost when the page closes.</p>
-        <p>Interpolated values are estimates between measurements &mdash; verify critical boundaries (e.g., the 85&nbsp;dBA action level) with additional measurements.</p>
-        <p>&copy; 2026 Mark Huang. All rights reserved. This software and its methodology implementation are the exclusive property of Mark Huang; no copying, modification, or redistribution without prior written permission. Provided &ldquo;as is&rdquo; without warranty of any kind.</p>
-      </details>
+      <h2>How to use</h2>
+      <div class="row"><button id="btnGuide">Open the user guide</button></div>
+      <div class="hint">Step-by-step instructions for every part of the tool, including walls and barriers. You can also press <kbd>H</kbd> or click <b>? Guide</b> above the map.</div>
     </div>
 
     <div class="hint" style="text-align:center; margin-top: 2px;">
@@ -192,8 +236,10 @@
       <button class="modeBtn active" id="modePan" title="Pan / drag points (V)">&#9995; Pan / select</button>
       <button class="modeBtn" id="modeAdd" title="Click plan to add measurement (A)">&#10133; Add points</button>
       <button class="modeBtn" id="modeSrc" title="Click plan to add a noise source (S)">&#128266; Add source</button>
+      <button class="modeBtn" id="modeWall" title="Click along a wall; double-click or Esc to finish (W)">&#129521; Draw wall</button>
       <button class="modeBtn" id="modeCal" title="Click two points of known distance (C)">&#128207; Calibrate</button>
       <span class="spacer"></span>
+      <button class="sec2" id="btnGuide2" title="User guide (H)">? Guide</button>
       <button class="sec2" id="btnZoomOut">&minus;</button>
       <button class="sec2" id="btnZoomIn">+</button>
       <button class="sec2" id="btnFit">Fit</button>
@@ -222,6 +268,228 @@
           <select id="cmUnit"><option value="m">meters</option><option value="ft">feet</option></select></div>
         <div class="row"><button id="cmOk">Set scale</button><button class="sec2" id="cmCancel">Cancel</button></div>
       </div>
+
+      <div id="guide" class="hidden" role="dialog" aria-label="User guide">
+        <div class="ghead"><h2>Noise Contour Mapper &mdash; User Guide</h2><button id="btnGuideClose">Close</button></div>
+        <div class="gbody">
+          <p>This tool turns your sound level meter readings into a color-coded <b>noise map</b> drawn over a floor plan. Each area is colored by its noise level &mdash; for example, red for 90&ndash;95&nbsp;dBA &mdash; and <b>contour lines</b> mark the boundaries between levels, such as the 85&nbsp;dBA line. Use it to plan hearing-conservation zones, find loud areas, and explain noise risk to others.</p>
+          <div class="tip"><b>Your data stays with you.</b> Nothing you load or type is uploaded or stored anywhere. Closing or reloading the page erases your work, so save your project (step&nbsp;9) before you leave.</div>
+
+          <h4>Contents</h4>
+          <ul class="toc">
+            <li><a href="#g-start">Before you start</a></li>
+            <li><a href="#g-plan">Step 1 &mdash; Load the floor plan</a></li>
+            <li><a href="#g-scale">Step 2 &mdash; Set the scale</a></li>
+            <li><a href="#g-points">Step 3 &mdash; Add your measurements</a></li>
+            <li><a href="#g-walls">Step 4 &mdash; Draw walls and barriers</a></li>
+            <li><a href="#g-sources">Step 5 &mdash; Add noise sources</a></li>
+            <li><a href="#g-method">Step 6 &mdash; Choose the calculation</a></li>
+            <li><a href="#g-look">Step 7 &mdash; Adjust how the map looks</a></li>
+            <li><a href="#g-read">Step 8 &mdash; Read the map</a></li>
+            <li><a href="#g-save">Step 9 &mdash; Save and export</a></li>
+            <li><a href="#g-how">How walls change the calculation</a></li>
+            <li><a href="#g-limits">Limits and good practice</a></li>
+            <li><a href="#g-keys">Keyboard shortcuts</a></li>
+            <li><a href="#g-trouble">Troubleshooting</a></li>
+          </ul>
+
+          <h3 id="g-start">Before you start</h3>
+          <p>You will need:</p>
+          <ul>
+            <li><b>A floor plan</b> as an image (PNG or JPG) or a PDF. A clean, uncluttered plan is easiest to work on.</li>
+            <li><b>Your sound level meter readings</b> in dBA, and where on the plan each one was taken.</li>
+            <li><b>One known distance on the plan</b>, such as a dimensioned wall or a column grid spacing. This lets the tool work in meters or feet.</li>
+            <li><i>Optional:</i> the <b>main noisy machines</b> and their sound level at a known distance, for example &ldquo;92&nbsp;dBA at 1&nbsp;m&rdquo; from a datasheet or a close-up reading.</li>
+          </ul>
+          <div class="tip"><b>New to the tool?</b> Click <b>Load demo</b> (sidebar, section&nbsp;1) to open a finished example with readings, three machines, and walls with doorways. Try changing the settings to see what they do.</div>
+          <p>The numbered sections down the left side follow the order of the work, from top to bottom. The buttons above the map are the drawing tools.</p>
+
+          <h3 id="g-plan">Step 1 &mdash; Load the floor plan <span class="hint">(section 1)</span></h3>
+          <ol>
+            <li>Click <b>Load floor plan&hellip;</b></li>
+            <li>Choose your PNG, JPG or PDF file. For a PDF, only the first page is used.</li>
+          </ol>
+          <p><b>Moving around the plan:</b> roll the mouse wheel to zoom in and out. With <b>Pan / select</b> chosen in the toolbar, click and drag an empty part of the plan to move it. Click <b>Fit</b> to see the whole plan again.</p>
+
+          <h3 id="g-scale">Step 2 &mdash; Set the scale <span class="hint">(section 6)</span></h3>
+          <p>Setting the scale tells the tool how many pixels on the plan equal one meter (or foot). It adds a scale bar and shows positions in real units. <b>You need it for noise sources, for walls that block or reflect sound, and for partial barriers.</b></p>
+          <ol>
+            <li>Click <b>Calibrate scale&hellip;</b> (or <b>Calibrate</b> in the toolbar).</li>
+            <li>Click one end of the known distance, then the other end. Zoom in first for better accuracy.</li>
+            <li>Type the real distance, choose meters or feet, and click <b>Set scale</b>.</li>
+            <li><i>Optional:</i> click <b>Set origin (0,0)&hellip;</b> and click a reference point, such as a building corner. Positions are then shown as distances to the right (x) and upward (y) from that point &mdash; handy if you measured positions on site with a tape or laser.</li>
+          </ol>
+
+          <h3 id="g-points">Step 3 &mdash; Add your measurements <span class="hint">(section 2)</span></h3>
+          <ol>
+            <li>Click <b>Add points</b> in the toolbar.</li>
+            <li>Click the plan where a reading was taken.</li>
+            <li>Type the reading in dBA and press <kbd>Enter</kbd>. A label is filled in for you; change it if you like.</li>
+            <li>Repeat for every reading. The map appears as soon as there are two readings, and it updates as you go.</li>
+          </ol>
+          <p><b>To fix a mistake:</b> change the value or label in the list in section&nbsp;2, or click <b>&#10005;</b> to delete it. To move a reading, choose <b>Pan / select</b> and drag its marker.</p>
+          <p><b>To import from a spreadsheet:</b> save it as a CSV file with the columns <code>label, x, y, dBA</code> (or just <code>x, y, dBA</code>). In section&nbsp;2, choose what the x and y numbers are &mdash; pixels, percent of the plan, or meters/feet &mdash; then click <b>Import CSV</b>. For meters/feet, set the scale and the origin first, and measure x to the right and y upward from that origin.</p>
+
+          <h3 id="g-walls">Step 4 &mdash; Draw walls and barriers <span class="hint">(section 2c)</span></h3>
+          <p>Walls change how sound travels. Drawing them lets the map show a quiet office next to a loud press room, instead of blending the two together. Walls do three things:</p>
+          <ul>
+            <li><b>They block sound</b> passing through them.</li>
+            <li><b>They reflect sound</b>, making it louder near hard walls.</li>
+            <li><b>They stop measurements &ldquo;leaking&rdquo;</b> into the next room. A reading in the press room only affects the office through a doorway.</li>
+          </ul>
+          <h4>How to draw a wall</h4>
+          <ol>
+            <li>In section&nbsp;2c, choose the <b>Type for new walls</b> (see the table below).</li>
+            <li>Click <b>Draw wall</b> in the toolbar, or press <kbd>W</kbd>.</li>
+            <li>Click where the wall starts, then click at each corner along it. Each click finishes one straight section and starts the next.</li>
+            <li><b>Double-click</b>, or press <kbd>Esc</kbd>, to finish the wall. Your next click starts a new wall.</li>
+          </ol>
+          <h4>Drawing tips</h4>
+          <ul>
+            <li><b>Leave a gap for every doorway</b>, open bay or other opening. Sound, and the influence of your readings, passes through gaps but not through walls. If a door is usually kept shut, you can draw across it instead.</li>
+            <li><b>Hold <kbd>Shift</kbd></b> to draw a perfectly straight horizontal or vertical line.</li>
+            <li><b>Let corners snap.</b> When the pointer comes close to the end of a wall, or to a wall itself, it jumps onto it and a pink circle appears. Snapped walls join without gaps. Even a tiny gap at a corner lets sound through.</li>
+            <li><b>You don&rsquo;t need every wall.</b> Draw the walls between areas with different noise levels, and solid walls close to loud machines (because of reflections). Walls in quiet areas far from machines make little difference.</li>
+          </ul>
+          <h4>Changing and removing walls</h4>
+          <ul>
+            <li><b>Select a wall:</b> with <b>Pan / select</b> chosen, click the wall on the map. It turns blue, and its row in section&nbsp;2c is highlighted. You can also click its row.</li>
+            <li><b>Move an end:</b> with <b>Pan / select</b> chosen, drag the round handle at the wall&rsquo;s end. Walls joined at that corner move together, so the corner stays closed.</li>
+            <li><b>Change the type:</b> pick a new type in the wall&rsquo;s row. Its values reset to that type&rsquo;s defaults.</li>
+            <li><b>Fine-tune:</b> change <b>Blocks</b> (dB), <b>Absorbs</b> (%) or <b>Height</b> in the wall&rsquo;s row.</li>
+            <li><b>Delete:</b> select the wall and press <kbd>Delete</kbd>, or click <b>&#10005;</b> in its row. <b>Remove all walls</b> clears every wall.</li>
+          </ul>
+          <h4>Wall types</h4>
+          <div class="tblwrap"><table>
+            <tr><th>Type</th><th>Blocks</th><th>Absorbs</th><th>Height</th><th>Use for</th></tr>
+            <tr><td>Concrete / masonry block</td><td class="num">30 dB</td><td class="num">2%</td><td>Full</td><td>Structural and block walls</td></tr>
+            <tr><td>Concrete with acoustic panels</td><td class="num">30 dB</td><td class="num">70%</td><td>Full</td><td>Walls lined with sound-absorbing panels</td></tr>
+            <tr><td>Drywall / stud partition</td><td class="num">20 dB</td><td class="num">5%</td><td>Full</td><td>Office partitions and stud walls</td></tr>
+            <tr><td>Metal panel / sheet steel</td><td class="num">20 dB</td><td class="num">5%</td><td>Full</td><td>Metal-clad walls and enclosure panels</td></tr>
+            <tr><td>Glass / window wall</td><td class="num">20 dB</td><td class="num">4%</td><td>Full</td><td>Glazed walls and control-room windows</td></tr>
+            <tr><td>Acoustic curtain</td><td class="num">10 dB</td><td class="num">50%</td><td>Full</td><td>Hanging acoustic curtains</td></tr>
+            <tr><td>Partial barrier / machine screen</td><td>Sound bends over the top</td><td class="num">5%</td><td class="num">2.4 m</td><td>Screens and barriers that don&rsquo;t reach the ceiling</td></tr>
+          </table></div>
+          <p><b>What the numbers mean:</b></p>
+          <ul>
+            <li><b>Blocks</b> &mdash; how much quieter sound is after passing through the wall. A 10&nbsp;dB drop sounds roughly half as loud. These are real-world values. They are lower than laboratory ratings because doors, gaps, and sound travelling through floors and ceilings let some noise past in real buildings.</li>
+            <li><b>Absorbs</b> &mdash; the share of sound the wall soaks up instead of bouncing back. Hard surfaces absorb almost nothing, so they reflect almost everything.</li>
+            <li><b>Height</b> &mdash; partial barriers only. The taller the barrier compared with the machine and the listener, the more it helps.</li>
+          </ul>
+          <p><b>On the map:</b> <span class="swatch" style="color:#37474f"></span>dark solid line = wall &nbsp;&middot;&nbsp; <span class="swatch" style="color:#00897b"></span>teal line = sound-absorbing wall (absorbs 30% or more) &nbsp;&middot;&nbsp; <span class="swatch" style="color:#6d4c41; border-top-style:dashed"></span>brown dashed line = partial barrier.</p>
+
+          <h3 id="g-sources">Step 5 &mdash; Add noise sources <span class="hint">(optional, section 2b)</span></h3>
+          <p>Noise sources are the machines you know about. With them, the tool can <i>calculate</i> noise from physics &mdash; including walls and reflections &mdash; instead of only filling in between your readings.</p>
+          <ol>
+            <li>Make sure the scale is set (step&nbsp;2).</li>
+            <li>Click <b>Add source</b> in the toolbar, then click the machine&rsquo;s location.</li>
+            <li>Enter its sound level and the distance it applies at, for example 92&nbsp;dBA at 1&nbsp;m. Click <b>Add</b>.</li>
+            <li>In section&nbsp;3, set <b>Method</b> to <b>Source model + residuals</b>.</li>
+          </ol>
+          <p>Sources appear as orange diamonds. Drag them with <b>Pan / select</b>, and change their levels in section&nbsp;2b.</p>
+
+          <h3 id="g-method">Step 6 &mdash; Choose the calculation <span class="hint">(section 3)</span></h3>
+          <div class="tblwrap"><table>
+            <tr><th>Method</th><th>How it works</th><th>Best for</th><th>Watch out for</th></tr>
+            <tr><td><b>Inverse distance (IDW)</b> &mdash; default</td><td>Each spot gets an average of the readings, with closer readings counting more.</td><td>Plenty of readings, spread evenly</td><td>It can&rsquo;t show a loud spot you didn&rsquo;t measure.</td></tr>
+            <tr><td><b>Radial basis (multiquadric)</b></td><td>Fits one smooth surface through all the readings.</td><td>Fewer readings over an open area</td><td>It can overshoot near the edges of the survey. It can&rsquo;t be used when walls completely separate rooms; the tool then shows IDW and tells you so.</td></tr>
+            <tr><td><b>Source model + residuals</b></td><td>Calculates the noise from each machine, including walls and reflections, then adjusts the whole map so it matches every reading exactly.</td><td>When you know the main machines; &ldquo;what if&rdquo; questions such as moving, adding or screening a machine</td><td>Needs the scale and at least one source.</td></tr>
+          </table></div>
+          <p><b>Other settings:</b></p>
+          <ul>
+            <li><b>IDW power</b> &mdash; higher makes each reading dominate its own area; lower gives a smoother, more averaged map. Also used to spread the corrections in the source model.</li>
+            <li><b>Grid resolution</b> &mdash; higher gives finer detail but takes longer to calculate.</li>
+            <li><b>Mask beyond</b> &mdash; hides areas farther than this many pixels from every reading, so you don&rsquo;t show guesses for areas you didn&rsquo;t survey. 0&nbsp;turns it off.</li>
+          </ul>
+          <h4>Wall settings</h4>
+          <ul>
+            <li><b>Measurements don&rsquo;t pass through walls</b> (all methods) &mdash; a reading only affects places it can reach by going around walls, such as through a doorway. The longer the way round, the less it counts. A room closed off from every reading is left blank (&ldquo;no data&rdquo;) rather than guessed.</li>
+            <li><b>Walls block sound</b> (source model) &mdash; sound through a wall is reduced by its <b>Blocks</b> value. Sound also travels around wall ends (through doorways) and over partial barriers, reduced the more it has to bend.</li>
+            <li><b>Walls reflect sound</b> (source model) &mdash; hard walls bounce sound back, raising levels near them: about 3&nbsp;dB beside a hard wall, more in corners. Sound-absorbing walls reflect much less.</li>
+            <li><b>Machine height</b> and <b>Ear height</b> &mdash; used only for partial barriers. The defaults are 1.0&nbsp;m for the noisy part of the machine and 1.5&nbsp;m for a standing worker&rsquo;s ear.</li>
+          </ul>
+          <div class="tip"><b>Tip:</b> switch each wall setting off and on to see how much it changes the map. This also helps you explain the effect of walls to others.</div>
+
+          <h3 id="g-look">Step 7 &mdash; Adjust how the map looks <span class="hint">(sections 4 and 5)</span></h3>
+          <ul>
+            <li><b>Heat map style</b> &mdash; <i>Banded</i> gives one solid color per noise band; <i>Smooth gradient</i> blends between them.</li>
+            <li><b>Overlay opacity</b> &mdash; how see-through the colors are, so the plan shows underneath.</li>
+            <li><b>Checkboxes</b> &mdash; show or hide contour lines, contour labels, point markers, dBA labels, the legend and the walls.</li>
+            <li><b>Noise bands</b> (section&nbsp;5) &mdash; the defaults are below 80, 80&ndash;85, 85&ndash;90, 90&ndash;95 and above 95&nbsp;dBA. Type a new number to move a boundary, click a color to change it, or use <b>+ Add band</b>, <b>&minus; Remove top band</b> and <b>Reset</b>. A contour line is drawn at every boundary.</li>
+          </ul>
+
+          <h3 id="g-read">Step 8 &mdash; Read the map</h3>
+          <ul>
+            <li>Each color shows the estimated noise band (see the legend). The numbered contour lines mark the boundaries, for example the line labeled <b>85</b>.</li>
+            <li>Move the mouse over the map. The bar at the bottom shows the position and the <b>estimated level at that spot</b>.</li>
+            <li>A <b>blank (uncolored) area</b> has no estimate. Either it is beyond the <b>Mask</b> distance, or walls close it off from every reading.</li>
+          </ul>
+
+          <h3 id="g-save">Step 9 &mdash; Save and export <span class="hint">(section 7)</span></h3>
+          <ul>
+            <li><b>Map title</b> &mdash; printed on the exported map.</li>
+            <li><b>Save project</b> &mdash; saves everything (plan, readings, sources, walls and settings) in one <code>.json</code> file. Click <b>Open project</b> later to carry on exactly where you left off.</li>
+            <li><b>Export map as PNG</b> &mdash; an image for reports, with the legend, scale bar, title, date and calculation method.</li>
+            <li><b>Export CSV</b> (section&nbsp;2) &mdash; your readings as a spreadsheet file.</li>
+          </ul>
+          <p>Each time, you choose where the file goes, such as your Desktop or your own cloud drive. In Chrome and Edge a <b>Save</b> window opens. Firefox and Safari put the file in your downloads folder instead.</p>
+          <div class="tip warnbox"><b>Nothing is stored for you.</b> If you close or reload the page without saving, your work is gone. The page warns you if you try to leave with unsaved changes.</div>
+
+          <h3 id="g-how">How walls change the calculation</h3>
+          <p>In the <b>source model</b>, sound can reach a spot from each machine in up to four ways. The tool works out each one:</p>
+          <ol>
+            <li><b>Straight through.</b> Sound loses strength with distance (6&nbsp;dB quieter each time the distance doubles). Each wall it passes through takes off that wall&rsquo;s <b>Blocks</b> value.</li>
+            <li><b>Around a wall</b>, for example through a doorway. The tool finds the shortest way around the wall ends. The longer the detour compared with the straight line, the more the sound is reduced, up to 20&nbsp;dB.</li>
+            <li><b>Over a partial barrier.</b> Sound bends over the top. The reduction depends on how far the barrier rises above the line between the machine and the listener&rsquo;s ear, again up to 20&nbsp;dB.</li>
+            <li><b>Reflected off a wall.</b> Each wall acts like a mirror and bounces each machine&rsquo;s sound back once. Sound-absorbing walls bounce back less.</li>
+          </ol>
+          <p>These routes are added the way sound adds: two equal sounds together are 3&nbsp;dB louder, not twice the number. Finally, the whole map is adjusted so it matches your readings exactly. That adjustment also covers effects the tool doesn&rsquo;t model, and it too goes around walls rather than through them.</p>
+          <p>For <b>IDW</b> and <b>Radial basis</b>, walls don&rsquo;t change any acoustics. They only stop readings influencing the far side of a wall, except through openings.</p>
+
+          <h3 id="g-limits">Limits and good practice</h3>
+          <p>The tool keeps the physics simple so that it is quick and easy to check. It does <b>not</b> model:</p>
+          <ul>
+            <li>Sound bouncing off two or more walls in a row, or off the ceiling and floor.</li>
+            <li>The general build-up of sound in large, hard rooms (reverberation), where levels stop dropping with distance.</li>
+            <li>Pitch. Everything is in single dBA values, but real walls and barriers block high-pitched noise better than low rumble.</li>
+            <li>The size of machines. Each machine is treated as a single point; long machines and conveyors are really spread out.</li>
+            <li>Changing noise. Steady noise is assumed; impacts, tones and on/off cycles are not modeled.</li>
+          </ul>
+          <p>Adjusting the map to your readings makes up for much of this near the places you measured.</p>
+          <div class="tip warnbox"><b>Good practice.</b> The map is an estimate for planning and communication. Confirm important boundaries &mdash; especially the 85&nbsp;dBA action level &mdash; with extra measurements. The map does not replace personal noise dosimetry or a regulatory exposure assessment.</div>
+
+          <h3 id="g-keys">Keyboard shortcuts</h3>
+          <div class="tblwrap"><table>
+            <tr><th>Key</th><th>What it does</th></tr>
+            <tr><td><kbd>V</kbd></td><td>Pan / select</td></tr>
+            <tr><td><kbd>A</kbd></td><td>Add points</td></tr>
+            <tr><td><kbd>S</kbd></td><td>Add source (after the scale is set)</td></tr>
+            <tr><td><kbd>W</kbd></td><td>Draw wall</td></tr>
+            <tr><td><kbd>C</kbd></td><td>Calibrate the scale</td></tr>
+            <tr><td><kbd>Shift</kbd> while drawing</td><td>Straight horizontal or vertical wall</td></tr>
+            <tr><td>Double-click or <kbd>Esc</kbd></td><td>Finish the wall you are drawing</td></tr>
+            <tr><td><kbd>Delete</kbd></td><td>Delete the selected wall</td></tr>
+            <tr><td><kbd>Enter</kbd></td><td>Confirm an entry box</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Close an entry box or this guide</td></tr>
+            <tr><td><kbd>H</kbd></td><td>Open this guide</td></tr>
+            <tr><td>Mouse wheel</td><td>Zoom in and out</td></tr>
+          </table></div>
+
+          <h3 id="g-trouble">Troubleshooting</h3>
+          <div class="tblwrap"><table>
+            <tr><th>Problem</th><th>What to do</th></tr>
+            <tr><td>No map appears</td><td>IDW and Radial basis need a floor plan and at least two readings. The source model needs the scale set and at least one noise source.</td></tr>
+            <tr><td>Part of the map is blank after drawing walls</td><td>Walls close that area off from all your readings. Add a reading there, leave a doorway gap, or untick <b>Measurements don&rsquo;t pass through walls</b>.</td></tr>
+            <tr><td>Color &ldquo;leaks&rdquo; through a wall</td><td>There is probably a small gap at a corner. In Pan mode, drag the wall end onto the other wall until the pink circle appears.</td></tr>
+            <tr><td>&ldquo;Radial basis can&rsquo;t connect&hellip;&rdquo; message</td><td>Walls completely separate some readings from others. The map uses IDW instead. Add a doorway gap if there really is an opening.</td></tr>
+            <tr><td>Walls make no difference</td><td>Check the wall settings in section&nbsp;3 are ticked. Blocking and reflections only apply to the source model.</td></tr>
+            <tr><td>Imported points land in the wrong place</td><td>Check the units list next to <b>Import CSV</b>. For meters/feet, set the scale and the origin first.</td></tr>
+            <tr><td>A PDF shows the wrong page</td><td>Only page 1 is used. Save the page you need as its own PDF or image.</td></tr>
+          </table></div>
+
+          <p class="hint" style="margin-top:22px">&copy; 2026 Mark Huang. All rights reserved. This software and its methodology implementation are the exclusive property of Mark Huang; no copying, modification, or redistribution without prior written permission. Provided &ldquo;as is&rdquo; without warranty of any kind. No user data is collected, uploaded, or stored by this software.</p>
+        </div>
+      </div>
     </div>
     <div id="status">Load a floor plan to begin.</div>
   </main>
@@ -242,8 +510,11 @@ const DEFAULT_EDGES = edges.slice(), DEFAULT_COLORS = colors.slice();
 const S = {                          // settings
   method: 'idw', power: 2, gridRes: 160, maskDist: 0,
   opacity: 0.55, smooth: false,
-  showContours: true, showClabels: true, showMarkers: true, showMlabels: true, showLegend: true
+  showContours: true, showClabels: true, showMarkers: true, showMlabels: true, showLegend: true,
+  showWalls: true, wallsInterp: true, wallsBlock: true, wallReflect: true,
+  srcHeight: 1.0, earHeight: 1.5      // m; used only for partial-barrier screening
 };
+const DEFAULT_S = Object.assign({}, S);
 let calib = null;                    // {pxPerUnit, unit, x1,y1,x2,y2, dist}
 let view  = { scale: 1, tx: 0, ty: 0 };
 let mode  = 'pan';                   // pan | add | cal
@@ -353,18 +624,255 @@ function gradColor(v) {
   return anchors[anchors.length-1].c;
 }
 
+/* ============================== walls =============================== */
+// Walls are segments on the plan (image px). Full-height walls (height null) block
+// sound and stop measurement influence; partial barriers (height in m) only screen
+// sound bending over the top. Every wall can reflect sound.
+const WALL_TYPES = {
+  concrete: { name: 'Concrete / masonry block',         tl: 30, alpha: 0.02, height: null },
+  panels:   { name: 'Concrete with acoustic panels',    tl: 30, alpha: 0.70, height: null },
+  drywall:  { name: 'Drywall / stud partition',         tl: 20, alpha: 0.05, height: null },
+  metal:    { name: 'Metal panel / sheet steel',        tl: 20, alpha: 0.05, height: null },
+  glass:    { name: 'Glass / window wall',              tl: 20, alpha: 0.04, height: null },
+  curtain:  { name: 'Acoustic curtain',                 tl: 10, alpha: 0.50, height: null },
+  barrier:  { name: 'Partial barrier / machine screen', tl: 0,  alpha: 0.05, height: 2.4 }
+};
+const LAMBDA_M = 343 / 500;          // wavelength at 500 Hz, the usual single-frequency stand-in for dBA
+const MAX_SCREEN_DB = 20;            // practical cap on screening by sound bending around/over walls
+const CAP_N = Math.pow(10, (MAX_SCREEN_DB - 5) / 10) / (2 * Math.PI);   // Fresnel number where the cap is reached
+const VERT_EPS = 0.75;               // px: path corners sit just past each wall end
+let walls = [];                      // {id, x1, y1, x2, y2, type, tl (dB), alpha (0–1), height (m) | null}
+let nextWallId = 1;
+let wallType = 'concrete';           // type for the next wall drawn
+let wallDraft = null;                // {x, y}: start of the wall section being drawn
+let selWall = null;
+let mouseShift = false;
+
+function newWall(x1, y1, x2, y2, type) {
+  const t = WALL_TYPES[type];
+  return { id: nextWallId++, x1, y1, x2, y2, type, tl: t.tl, alpha: t.alpha, height: t.height };
+}
+function unitM() { return calib && calib.unit === 'ft' ? 0.3048 : 1; }   // meters per calibrated unit
+function pxToM(px) { return px / calib.pxPerUnit * unitM(); }
+
+// Parameter t (0–1) where segment a→b crosses segment c→d, or -1. The wall's own ends
+// count as part of it, so paths can't slip through the joint between two walls; the
+// path's ends don't, so a path may start or end on a wall.
+function crossT(ax, ay, bx, by, cx, cy, dx, dy) {
+  const rx = bx - ax, ry = by - ay, qx = dx - cx, qy = dy - cy;
+  const den = rx * qy - ry * qx;
+  if (Math.abs(den) < 1e-12) return -1;
+  const wx = cx - ax, wy = cy - ay;
+  const t = (wx * qy - wy * qx) / den, u = (wx * ry - wy * rx) / den;
+  return (t > 1e-9 && t < 1 - 1e-9 && u >= -1e-9 && u <= 1 + 1e-9) ? t : -1;
+}
+
+// Shortest routes around full-height walls use a visibility graph: path corners sit
+// just past each wall end, on both sides. WP caches it until the walls change.
+let WP = null;                       // {sig, F (wall coords), vx, vy, VV (visible pairs), VD (pair distances)}
+let CV = null;                       // {sig, lists}: corners visible from each grid node
+function prepWalls() {
+  const full = walls.filter(w => w.height == null);
+  const sig = JSON.stringify(full.map(w => [w.x1, w.y1, w.x2, w.y2]));
+  if (WP && WP.sig === sig) return;
+  const F = new Float64Array(full.length * 4);
+  full.forEach((w, k) => F.set([w.x1, w.y1, w.x2, w.y2], 4 * k));
+  WP = { sig, F, vx: [], vy: [] };
+  const seen = new Set();
+  for (const w of full) {
+    const len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1) || 1;
+    const dx = (w.x2 - w.x1) / len, dy = (w.y2 - w.y1) / len;
+    for (const [ex, ey, s] of [[w.x2, w.y2, 1], [w.x1, w.y1, -1]])
+      for (const side of [1, -1]) {
+        const px = ex + VERT_EPS * (s * dx - side * dy), py = ey + VERT_EPS * (s * dy + side * dx);
+        const key = Math.round(px * 4) + ',' + Math.round(py * 4);
+        if (!seen.has(key)) { seen.add(key); WP.vx.push(px); WP.vy.push(py); }
+      }
+  }
+  // free wall ends (not joined to another wall): the edges sound bends around
+  WP.edges = [];
+  for (const w of full)
+    for (const [ex, ey] of [[w.x1, w.y1], [w.x2, w.y2]]) {
+      const joined = full.some(o => o !== w && segDist(ex, ey, o) < 0.5);
+      if (!joined) WP.edges.push([ex, ey]);
+    }
+  const V = WP.vx.length;
+  WP.VV = new Uint8Array(V * V); WP.VD = new Float64Array(V * V);
+  for (let i = 0; i < V; i++)
+    for (let j = i + 1; j < V; j++) {
+      if (blockedPx(WP.vx[i], WP.vy[i], WP.vx[j], WP.vy[j])) continue;
+      const d = Math.hypot(WP.vx[j] - WP.vx[i], WP.vy[j] - WP.vy[i]);
+      WP.VV[i * V + j] = WP.VV[j * V + i] = 1;
+      WP.VD[i * V + j] = WP.VD[j * V + i] = d;
+    }
+  CV = null;
+}
+function segDist(px, py, w) {
+  const ex = w.x2 - w.x1, ey = w.y2 - w.y1, l2 = ex * ex + ey * ey;
+  const t = l2 ? clamp(((px - w.x1) * ex + (py - w.y1) * ey) / l2, 0, 1) : 0;
+  return Math.hypot(px - (w.x1 + t * ex), py - (w.y1 + t * ey));
+}
+// Screening (dB) of an unblocked path passing just beside a free wall end: the lit side
+// of Maekawa's curve, which fades from 5 dB at the shadow boundary to 0, so levels
+// stay continuous across the edge of a doorway's "beam".
+function edgeScreen(ax, ay, bx, by) {
+  const d = Math.hypot(bx - ax, by - ay);
+  let best = 0;
+  for (const [ex, ey] of WP.edges) {
+    const delta = pxToM(Math.hypot(ex - ax, ey - ay) + Math.hypot(bx - ex, by - ey) - d);
+    if (delta < 0.1 * LAMBDA_M) best = Math.max(best, screenDb(-delta));
+  }
+  return best;
+}
+function blockedPx(ax, ay, bx, by) {       // does a→b pass through any full-height wall?
+  const F = WP.F;
+  const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx), y0 = Math.min(ay, by), y1 = Math.max(ay, by);
+  for (let k = 0; k < F.length; k += 4) {
+    const cx = F[k], cy = F[k + 1], dx = F[k + 2], dy = F[k + 3];
+    if ((cx > dx ? cx : dx) < x0 || (cx < dx ? cx : dx) > x1 ||
+        (cy > dy ? cy : dy) < y0 || (cy < dy ? cy : dy) > y1) continue;
+    if (crossT(ax, ay, bx, by, cx, cy, dx, dy) > 0) return true;
+  }
+  return false;
+}
+function visVerts(x, y) {
+  const out = [];
+  for (let v = 0; v < WP.vx.length; v++) if (!blockedPx(x, y, WP.vx[v], WP.vy[v])) out.push(v);
+  return out;
+}
+function prepCellVis() {
+  const sig = WP.sig + '|' + gw + 'x' + gh + '|' + imgW + 'x' + imgH;
+  if (CV && CV.sig === sig) return;
+  const lists = new Array((gw + 1) * (gh + 1));
+  for (let j = 0; j <= gh; j++)
+    for (let i = 0; i <= gw; i++) lists[j * (gw + 1) + i] = visVerts(i * sx, j * sy);
+  CV = { sig, lists };
+}
+function relaxPaths(D) {   // Dijkstra over the corner graph, from the first-hop distances in D
+  const V = WP.vx.length, done = new Uint8Array(V);
+  for (;;) {
+    let b = -1, bd = Infinity;
+    for (let v = 0; v < V; v++) if (!done[v] && D[v] < bd) { bd = D[v]; b = v; }
+    if (b < 0) break;
+    done[b] = 1;
+    for (let v = 0, row = b * V; v < V; v++)
+      if (!done[v] && WP.VV[row + v] && bd + WP.VD[row + v] < D[v]) D[v] = bd + WP.VD[row + v];
+  }
+  return D;
+}
+// A "site" (measurement or source) with its shortest distance to every path corner.
+function makeSite(x, y) {
+  const V = WP.vx.length, D = new Float64Array(V).fill(Infinity);
+  for (let v = 0; v < V; v++)
+    if (!blockedPx(x, y, WP.vx[v], WP.vy[v])) D[v] = Math.hypot(WP.vx[v] - x, WP.vy[v] - y);
+  return { x, y, D: relaxPaths(D) };
+}
+// Where the reflection of source s off wall w toward (rx, ry) bounces, using the mirror
+// image (ix, iy); null unless both are in front of the wall and the bounce is on it.
+function bounceAt(s, w, ix, iy, rx, ry) {
+  const ex = w.x2 - w.x1, ey = w.y2 - w.y1, len2 = ex * ex + ey * ey;
+  const cs = ex * (s.y - w.y1) - ey * (s.x - w.x1), cr = ex * (ry - w.y1) - ey * (rx - w.x1);
+  if (len2 < 1e-9 || cs * cr <= 0) return null;
+  const t = cs / (cs + cr);
+  const px = ix + t * (rx - ix), py = iy + t * (ry - iy);
+  const u = ((px - w.x1) * ex + (py - w.y1) * ey) / len2;
+  return { px, py, u };
+}
+function mirrorImage(s, w) {
+  const ex = w.x2 - w.x1, ey = w.y2 - w.y1;
+  const f = ((s.x - w.x1) * ex + (s.y - w.y1) * ey) / (ex * ex + ey * ey);
+  return [2 * (w.x1 + f * ex) - s.x, 2 * (w.y1 + f * ey) - s.y];
+}
+// The mirror image of source s in wall w as a site of its own: its first hop must bounce
+// off the wall itself with both legs clear, then it can route around walls like a source.
+function makeMirrorSite(s, w) {
+  const [ix, iy] = mirrorImage(s, w);
+  const V = WP.vx.length, D = new Float64Array(V).fill(Infinity);
+  for (let v = 0; v < V; v++) {
+    const b = bounceAt(s, w, ix, iy, WP.vx[v], WP.vy[v]);
+    if (!b || b.u < 0 || b.u > 1) continue;
+    if (blockedPx(s.x, s.y, b.px, b.py) || blockedPx(b.px, b.py, WP.vx[v], WP.vy[v])) continue;
+    D[v] = Math.hypot(WP.vx[v] - ix, WP.vy[v] - iy);
+  }
+  return { x: ix, y: iy, D: relaxPaths(D) };
+}
+function viaCorners(site, x, y, getVis) {   // shortest route to (x, y) through path corners only
+  let best = Infinity;
+  for (const v of getVis()) {
+    const d = Math.hypot(x - WP.vx[v], y - WP.vy[v]) + site.D[v];
+    if (d < best) best = d;
+  }
+  return best;
+}
+// Shortest distance (px) from a site to (x, y) without passing through full-height walls.
+function pathDist(site, x, y, getVis) {
+  if (!blockedPx(site.x, site.y, x, y)) return Math.hypot(x - site.x, y - site.y);
+  return viaCorners(site, x, y, getVis);
+}
+
+// Screening (dB) of sound bending around or over an edge, from the extra path length
+// delta (m; negative when the edge doesn't break the line of sight). Kurze–Anderson
+// form of Maekawa's curve at 500 Hz, capped at MAX_SCREEN_DB.
+function screenDb(deltaM) {
+  const N = 2 * deltaM / LAMBDA_M;
+  let a;
+  if (N <= -0.2) return 0;
+  if (N < 0) { const r = Math.sqrt(-2 * Math.PI * N); a = 5 + 20 * Math.log10(r / Math.tan(r)); }
+  else if (N === 0) a = 5;
+  else { const r = Math.sqrt(2 * Math.PI * N); a = 5 + 20 * Math.log10(r / Math.tanh(r)); }
+  return clamp(a, 0, MAX_SCREEN_DB);
+}
+// Reduction (dB) along the straight path a→b: the Blocks value of every full-height wall
+// it passes through, plus the largest over-the-top screening of any partial barrier.
+// skip = index of a wall to ignore (the wall a reflection bounces off).
+function pathLoss(ax, ay, bx, by, skip) {
+  let tl = 0, scr = 0, full = false;
+  const dM = pxToM(Math.hypot(bx - ax, by - ay)), hs = S.srcHeight, hr = S.earHeight;
+  for (let k = 0; k < walls.length; k++) {
+    if (k === skip) continue;
+    const w = walls[k];
+    const t = crossT(ax, ay, bx, by, w.x1, w.y1, w.x2, w.y2);
+    if (t < 0) continue;
+    if (w.height == null) { tl += w.tl; full = true; continue; }
+    const a = t * dM, b = (1 - t) * dM, hb = w.height;
+    const over = Math.hypot(a, hb - hs) + Math.hypot(b, hb - hr) - Math.hypot(a + b, hr - hs);
+    scr = Math.max(scr, screenDb(hb > hs + (hr - hs) * t ? over : -over));
+  }
+  return { db: tl + scr, full };
+}
+
 /* ========================= interpolation ============================ */
+let ptSites = null, srcSites = null, mirrorSites = null, interpWalls = false;
+let srcGrid = null, srcGridSig = '';
+let calcNote = '';
+// Distance (px) from measurement i to (x, y): around walls when that option is on.
+function ptDist(i, x, y, getVis) {
+  const p = points[i];
+  return interpWalls && ptSites && ptSites[i] ? pathDist(ptSites[i], x, y, getVis)
+                                               : Math.hypot(x - p.x, y - p.y);
+}
 let rbfW = null, rbfEps = 1;
 function solveRBF() {
   const n = points.length;
+  // pairwise distances (around walls when that option is on)
+  const vis = points.map(p => interpWalls ? visVerts(p.x, p.y) : null);
+  const Dm = [];
+  for (let i = 0; i < n; i++) {
+    Dm.push(new Float64Array(n));
+    for (let j = 0; j < n; j++)
+      if (j !== i) Dm[i][j] = ptDist(i, points[j].x, points[j].y, () => vis[j]);
+  }
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      if (!isFinite(Dm[i][j])) {
+        calcNote = 'Radial basis can’t connect readings in rooms that walls close off completely, so IDW is shown instead.';
+        return null;
+      }
   // eps = mean nearest-neighbor distance
   let sum = 0;
   for (let i = 0; i < n; i++) {
     let best = Infinity;
-    for (let j = 0; j < n; j++) if (j !== i) {
-      const d = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
-      if (d < best) best = d;
-    }
+    for (let j = 0; j < n; j++) if (j !== i && Dm[i][j] < best) best = Dm[i][j];
     sum += best;
   }
   rbfEps = Math.max(sum / n, 1);
@@ -372,7 +880,7 @@ function solveRBF() {
   for (let i = 0; i < n; i++) {
     A.push(new Float64Array(n));
     for (let j = 0; j < n; j++) {
-      const d = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
+      const d = Dm[i][j];
       A[i][j] = Math.sqrt(d*d + rbfEps*rbfEps);
     }
     z.push(points[i].db);
@@ -399,55 +907,111 @@ function solveRBF() {
   return w;
 }
 // --- source model (inverse square law + energy addition, per noise_model.py) ---
-function predictSourceDba(x, y) {
+function predictSourceDba(x, y, getVis) {
   // Distances converted to real units via the scale calibration; the far-field
   // inverse square law breaks down very close to a source, so distances are
   // clamped to a 0.5 m/ft minimum. dBA values are combined as energies, never
-  // added arithmetically.
+  // added arithmetically. With walls, each source reaches (x, y) straight through
+  // (minus wall losses), around full-height walls (screened by the detour), and by
+  // one reflection off each wall (reduced by its absorption).
+  const k = calib.pxPerUnit;
+  const block = S.wallsBlock && walls.length > 0, reflect = S.wallReflect && walls.length > 0;
   let energy = 0;
-  for (const s of sources) {
-    const dm = Math.max(Math.hypot(x - s.x, y - s.y) / calib.pxPerUnit, 0.5);
-    const L = s.db - 20 * Math.log10(dm / s.refDist);
+  for (let si = 0; si < sources.length; si++) {
+    const s = sources[si];
+    const level = dpx => s.db - 20 * Math.log10(Math.max(dpx / k, 0.5) / s.refDist);
+    const dpx = Math.hypot(x - s.x, y - s.y);
+    let L = level(dpx);
+    if (block) {
+      const pl = pathLoss(s.x, s.y, x, y, -1);
+      L -= pl.db;
+      const site = srcSites && srcSites[si];
+      if (site && pl.full) {               // also the route around wall ends, e.g. through a doorway
+        const g = pathDist(site, x, y, getVis);
+        if (isFinite(g)) energy += Math.pow(10, (level(g) - screenDb(pxToM(g - dpx))) / 10);
+      } else if (site) L -= edgeScreen(s.x, s.y, x, y);
+    }
     energy += Math.pow(10, L / 10);
+    if (!reflect) continue;
+    // Each wall reflects the source once, as if from its mirror image behind the wall.
+    // The image is treated like a real source: screened by walls on the way, routed
+    // around them, and softened where its path passes a wall end, so reflections fade
+    // in and out rather than switching on and off.
+    const mSites = mirrorSites && mirrorSites[si];
+    for (let wi = 0; wi < walls.length; wi++) {
+      const w = walls[wi];
+      if (w.alpha >= 1 || Math.hypot(w.x2 - w.x1, w.y2 - w.y1) < 1e-6) continue;
+      const [ix, iy] = mirrorImage(s, w);
+      const b = bounceAt(s, w, ix, iy, x, y);
+      if (!b) continue;                              // source and receiver must face the same side
+      const absorb = 10 * Math.log10(1 - w.alpha), dI = Math.hypot(x - ix, y - iy);
+      if (b.u >= 0 && b.u <= 1) {
+        const [qx, qy] = b.u < 0.5 ? [w.x1, w.y1] : [w.x2, w.y2];   // the wall end nearer the bounce
+        let Lr = level(dI) + absorb - screenDb(-pxToM(Math.hypot(qx - ix, qy - iy) + Math.hypot(x - qx, y - qy) - dI));
+        if (block) {
+          const l1 = pathLoss(s.x, s.y, b.px, b.py, wi), l2 = pathLoss(b.px, b.py, x, y, wi);
+          Lr -= l1.db + l2.db;
+          const site = mSites && mSites[wi];
+          if (site && (l1.full || l2.full)) {
+            const g = viaCorners(site, x, y, getVis);
+            if (isFinite(g)) energy += Math.pow(10, (level(g) + absorb - screenDb(pxToM(g - dI))) / 10);
+          } else if (site) Lr -= Math.max(edgeScreen(s.x, s.y, b.px, b.py), edgeScreen(b.px, b.py, x, y));
+        }
+        energy += Math.pow(10, Lr / 10);
+      } else {                                       // bounce point beyond the wall: bends round its end
+        const [qx, qy] = b.u < 0 ? [w.x1, w.y1] : [w.x2, w.y2];
+        const g = Math.hypot(qx - ix, qy - iy) + Math.hypot(x - qx, y - qy);
+        const delta = pxToM(g - dI);
+        if (2 * delta / LAMBDA_M > CAP_N) continue;  // screened past the cap: negligible
+        let Lr = level(g) + absorb - screenDb(delta);
+        if (block) Lr -= pathLoss(s.x, s.y, qx, qy, wi).db + pathLoss(qx, qy, x, y, wi).db;
+        energy += Math.pow(10, Lr / 10);
+      }
+    }
   }
   return 10 * Math.log10(energy);
 }
-function idwResidual(x, y) {
+function idwResidual(x, y, getVis) {
   // IDW-interpolated residual field calibrates the idealized source model to
   // the measured SLM readings (absorbing reflections, shielding, etc.).
   const minPx = 0.5 * calib.pxPerUnit;
   let num = 0, den = 0;
   for (let i = 0; i < points.length; i++) {
-    const d = Math.max(Math.hypot(x - points[i].x, y - points[i].y), minPx);
-    const w = 1 / Math.pow(d, S.power);
+    if (srcResiduals[i] === undefined) continue;
+    const d = ptDist(i, x, y, getVis);
+    if (!isFinite(d)) continue;
+    const w = 1 / Math.pow(Math.max(d, minPx), S.power);
     num += w * srcResiduals[i]; den += w;
   }
-  return num / den;
+  return den > 0 ? num / den : 0;   // no reachable measurement: physics prediction only
 }
-function maskedOut(x, y) {
+function maskedOut(x, y, getVis) {
   if (S.maskDist <= 0 || points.length === 0) return false;
   let nearest = Infinity;
   for (let i = 0; i < points.length; i++) {
-    const d = Math.hypot(x - points[i].x, y - points[i].y);
+    const d = ptDist(i, x, y, getVis);
     if (d < nearest) nearest = d;
   }
   return nearest > S.maskDist;
 }
-function valueAt(x, y) {
+function valueAt(x, y, cell = -1) {   // cell: grid node index, to reuse cached results
+  let vis = null;
+  const getVis = () => vis || (vis = cell >= 0 && CV ? CV.lists[cell] : visVerts(x, y));
   const n = points.length;
   if (S.method === 'source') {
     if (!calib || sources.length === 0) return NaN;
-    if (maskedOut(x, y)) return NaN;
-    let v = predictSourceDba(x, y);
-    if (srcResiduals && n > 0) v += idwResidual(x, y);
+    if (maskedOut(x, y, getVis)) return NaN;
+    let v = cell >= 0 && srcGrid ? srcGrid[cell] : predictSourceDba(x, y, getVis);
+    if (srcResiduals && n > 0) v += idwResidual(x, y, getVis);
     return v;
   }
   if (n === 0) return NaN;
-  if (maskedOut(x, y)) return NaN;
+  if (maskedOut(x, y, getVis)) return NaN;
   if (S.method === 'rbf' && rbfW) {
     let s = 0;
     for (let i = 0; i < n; i++) {
-      const d = Math.hypot(x - points[i].x, y - points[i].y);
+      const d = ptDist(i, x, y, getVis);
+      if (!isFinite(d)) return NaN;      // walled off from every reading
       s += rbfW[i] * Math.sqrt(d*d + rbfEps*rbfEps);
     }
     return s;
@@ -455,28 +1019,53 @@ function valueAt(x, y) {
   // IDW
   let num = 0, den = 0;
   for (let i = 0; i < n; i++) {
-    const d = Math.hypot(x - points[i].x, y - points[i].y);
+    const d = ptDist(i, x, y, getVis);
     if (d < 1e-6) return points[i].db;
+    if (!isFinite(d)) continue;
     const w = 1 / Math.pow(d, S.power);
     num += w * points[i].db; den += w;
   }
-  return num / den;
+  return den > 0 ? num / den : NaN;
 }
 function computeField() {
+  calcNote = '';
   const ready = baseImg && (S.method === 'source'
     ? (calib && sources.length >= 1)
     : points.length >= 2);
   if (!ready) { grid = null; overlay = null; contours = []; srcResiduals = null; return; }
-  rbfW = (S.method === 'rbf' && points.length >= 3) ? solveRBF() : null;
-  srcResiduals = (S.method === 'source' && points.length > 0)
-    ? points.map(p => p.db - predictSourceDba(p.x, p.y))
-    : null;
   gw = S.gridRes; gh = Math.max(10, Math.round(gw * imgH / imgW));
   sx = imgW / gw; sy = imgH / gh;
-  grid = new Float64Array((gw + 1) * (gh + 1));
+  const fullWalls = walls.some(w => w.height == null);
+  interpWalls = S.wallsInterp && fullWalls;
+  const srcPaths = S.method === 'source' && S.wallsBlock && fullWalls;
+  if (interpWalls || srcPaths) { prepWalls(); prepCellVis(); }
+  ptSites = interpWalls ? points.map(p => makeSite(p.x, p.y)) : null;
+  srcSites = srcPaths ? sources.map(s => makeSite(s.x, s.y)) : null;
+  mirrorSites = srcPaths && S.wallReflect
+    ? sources.map(s => walls.map(w => w.alpha < 1 && Math.hypot(w.x2 - w.x1, w.y2 - w.y1) >= 1e-6 ? makeMirrorSite(s, w) : null))
+    : null;
+  rbfW = (S.method === 'rbf' && points.length >= 3) ? solveRBF() : null;
+  srcResiduals = (S.method === 'source' && points.length > 0)
+    ? points.map(p => p.db - predictSourceDba(p.x, p.y, () => visVerts(p.x, p.y)))
+    : null;
+  const W = gw + 1;
+  if (S.method === 'source') {   // the physics grid only changes with sources, walls, or scale
+    const sig = JSON.stringify([sources, walls, calib.pxPerUnit, calib.unit, S.wallsBlock, S.wallReflect,
+                                S.srcHeight, S.earHeight, gw, gh, imgW, imgH]);
+    if (sig !== srcGridSig) {
+      srcGrid = new Float64Array(W * (gh + 1));
+      for (let j = 0; j <= gh; j++)
+        for (let i = 0; i <= gw; i++) {
+          const c = j * W + i;
+          srcGrid[c] = predictSourceDba(i * sx, j * sy, () => CV.lists[c]);
+        }
+      srcGridSig = sig;
+    }
+  }
+  grid = new Float64Array(W * (gh + 1));
   for (let j = 0; j <= gh; j++)
     for (let i = 0; i <= gw; i++)
-      grid[j * (gw + 1) + i] = valueAt(i * sx, j * sy);
+      grid[j * W + i] = valueAt(i * sx, j * sy, j * W + i);
 }
 
 /* =========================== heat overlay =========================== */
@@ -573,6 +1162,7 @@ function drawMapLayers(c, k) {  // c: 2d context already in image coords; k: px 
       }
     }
   }
+  if (S.showWalls) drawWalls(c, k);
   if (S.showMarkers) {
     for (const s of sources) {   // noise sources: orange diamonds
       c.beginPath();
@@ -605,8 +1195,27 @@ function drawMapLayers(c, k) {  // c: 2d context already in image coords; k: px 
     }
   }
 }
+function wallKind(w) { return w.height != null ? 'barrier' : w.alpha >= 0.3 ? 'absorb' : 'wall'; }
+const WALL_LOOK = {
+  wall:    { color: '#37474f', width: 5, dash: null,   label: 'Wall' },
+  absorb:  { color: '#00897b', width: 5, dash: null,   label: 'Sound-absorbing wall' },
+  barrier: { color: '#6d4c41', width: 4, dash: [9, 6], label: 'Partial barrier' }
+};
+function strokeWall(c, x1, y1, x2, y2, look, k) {   // white halo first, so walls read over the heat map
+  c.save(); c.lineCap = 'round';
+  c.setLineDash(look.dash ? look.dash.map(d => d * k) : []);
+  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2);
+  c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = (look.width + 2.5) * k; c.stroke();
+  c.strokeStyle = look.color; c.lineWidth = look.width * k; c.stroke();
+  c.restore();
+}
+function drawWalls(c, k) {
+  for (const w of walls) strokeWall(c, w.x1, w.y1, w.x2, w.y2, WALL_LOOK[wallKind(w)], k);
+}
 function drawLegend(c, x, y, k) {
-  const rows = colors.length, rh = 17*k, w = 148*k, h = rows*rh + 30*k;
+  const kinds = S.showWalls ? ['wall', 'absorb', 'barrier'].filter(kd => walls.some(w => wallKind(w) === kd)) : [];
+  const rows = colors.length, rh = 17*k, w = 148*k;
+  const h = rows*rh + 30*k + (kinds.length ? 8*k + kinds.length*rh : 0);
   c.save();
   c.fillStyle = 'rgba(255,255,255,0.93)';
   c.strokeStyle = '#98a4b3'; c.lineWidth = 1*k;
@@ -624,6 +1233,11 @@ function drawLegend(c, x, y, k) {
     c.fillStyle = '#222';
     c.fillText(bandLabel(bi) + ' dBA', x + 36*k, ry + 1*k);
   }
+  kinds.forEach((kd, r) => {
+    const ry = y + 26*k + rows*rh + 8*k + r*rh;
+    strokeWall(c, x + 11*k, ry + 6*k, x + 27*k, ry + 6*k, WALL_LOOK[kd], k * 0.75);
+    c.fillStyle = '#222'; c.fillText(WALL_LOOK[kd].label, x + 36*k, ry + 1*k);
+  });
   c.restore();
   return h;
 }
@@ -685,6 +1299,33 @@ function draw() {
     ctx.strokeText('0,0', calib.ox + 6*k, calib.oy + 5*k);
     ctx.fillStyle = '#00695c'; ctx.fillText('0,0', calib.ox + 6*k, calib.oy + 5*k);
   }
+  // selected wall: blue highlight with end handles
+  if (selWall && walls.includes(selWall)) {
+    const k = 1 / view.scale, w = selWall;
+    ctx.save(); ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(43,94,167,0.45)'; ctx.lineWidth = 12*k;
+    ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke();
+    for (const [ex, ey] of [[w.x1, w.y1], [w.x2, w.y2]]) {
+      ctx.beginPath(); ctx.arc(ex, ey, 5.5*k, 0, Math.PI*2);
+      ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2*k; ctx.strokeStyle = '#2b5ea7'; ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // wall drawing: preview of the next section and the snap target
+  if (mode === 'wall' && mouseImg) {
+    const k = 1 / view.scale;
+    const q = snapWallPoint(mouseImg.x, mouseImg.y, mouseShift);
+    if (wallDraft) {
+      const t = WALL_TYPES[wallType];
+      ctx.globalAlpha = 0.7;
+      strokeWall(ctx, wallDraft.x, wallDraft.y, q.x, q.y, WALL_LOOK[wallKind(t)], k);
+      ctx.globalAlpha = 1;
+    }
+    if (q.snapped) {
+      ctx.beginPath(); ctx.arc(q.x, q.y, 7*k, 0, Math.PI*2);
+      ctx.lineWidth = 2.2*k; ctx.strokeStyle = '#d81b60'; ctx.stroke();
+    }
+  }
   // calibration feedback
   if (mode === 'cal' && calClicks.length >= 1) {
     const k = 1 / view.scale;
@@ -705,7 +1346,10 @@ function draw() {
 let rcT = null;
 function recompute(now) {
   clearTimeout(rcT);
-  const run = () => { computeField(); buildOverlay(); computeContours(); draw(); };
+  const run = () => {
+    computeField(); buildOverlay(); computeContours(); draw();
+    $('calcNote').textContent = calcNote;
+  };
   if (now) run(); else rcT = setTimeout(run, 120);
 }
 
@@ -747,7 +1391,19 @@ cv.addEventListener('mousedown', e => {
     if (hitS) { drag = { type: 'src', pt: hitS }; return; }
     const hit = points.find(pt => Math.hypot(pt.x - p.x, pt.y - p.y) * view.scale < 11);
     if (hit) { drag = { type: 'pt', pt: hit }; return; }
+    const ends = wallEndsAt(p.x, p.y, 9 / view.scale);
+    if (ends) { selectWall(ends[0].w); drag = { type: 'wallEnd', ends }; return; }
+    selectWall(wallAt(p.x, p.y, 6 / view.scale));
     drag = { type: 'pan', sx: e.clientX, sy: e.clientY, tx: view.tx, ty: view.ty };
+  } else if (mode === 'wall') {
+    const q = snapWallPoint(clamp(p.x, 0, imgW), clamp(p.y, 0, imgH), e.shiftKey);
+    if (wallDraft && Math.hypot(q.x - wallDraft.x, q.y - wallDraft.y) * view.scale < 4) return;  // 2nd press of a double-click
+    if (wallDraft) {
+      walls.push(newWall(wallDraft.x, wallDraft.y, q.x, q.y, wallType));
+      rebuildWallTable(); recompute(true);
+    }
+    wallDraft = { x: q.x, y: q.y };
+    draw();
   } else if (mode === 'addsrc') {
     if (p.x < 0 || p.y < 0 || p.x > imgW || p.y > imgH) return;
     pendingSrc = { x: p.x, y: p.y };
@@ -785,13 +1441,17 @@ cv.addEventListener('mousedown', e => {
     draw();
   }
 });
+cv.addEventListener('dblclick', () => {
+  if (mode === 'wall' && wallDraft) { wallDraft = null; draw(); }
+});
 window.addEventListener('mousemove', e => {
+  mouseShift = e.shiftKey;
   if (baseImg) {
     const r = cv.getBoundingClientRect();
     if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
       mouseImg = toImg(e);
       updateStatus();
-      if (mode === 'cal' && calClicks.length === 1) draw();
+      if ((mode === 'cal' && calClicks.length === 1) || mode === 'wall') draw();
     }
   }
   if (!drag) return;
@@ -803,11 +1463,24 @@ window.addEventListener('mousemove', e => {
     const p = toImg(e);
     drag.pt.x = clamp(p.x, 0, imgW); drag.pt.y = clamp(p.y, 0, imgH);
     draw(); recompute();
+  } else if (drag.type === 'wallEnd') {   // joined ends move together, so corners stay closed
+    const p = toImg(e);
+    const q = snapWallPoint(clamp(p.x, 0, imgW), clamp(p.y, 0, imgH), false, drag.ends.map(d => d.w));
+    for (const { w, end } of drag.ends) {
+      if (end === 1) { w.x1 = q.x; w.y1 = q.y; } else { w.x2 = q.x; w.y2 = q.y; }
+    }
+    draw(); recompute();
   }
 });
 window.addEventListener('mouseup', () => {
   if (drag && drag.type === 'pt') rebuildPtTable();
   if (drag && drag.type === 'src') rebuildSrcTable();
+  if (drag && drag.type === 'wallEnd') {
+    const n = walls.length;
+    walls = walls.filter(w => Math.hypot(w.x2 - w.x1, w.y2 - w.y1) >= 1);   // drop walls dragged to nothing
+    if (walls.length !== n && !walls.includes(selWall)) selWall = null;
+    rebuildWallTable(); recompute(true);
+  }
   drag = null;
 });
 window.addEventListener('resize', draw);
@@ -821,19 +1494,35 @@ window.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeModals(); }
     return;
   }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Shift') { mouseShift = true; if (mode === 'wall') draw(); return; }
+  if (e.key === 'Escape') {
+    if (!$('guide').classList.contains('hidden')) closeGuide(); else closeModals();
+    return;
+  }
+  if (!$('guide').classList.contains('hidden')) return;   // the guide is open: no tool shortcuts
   if (e.key === 'v' || e.key === 'V') setMode('pan');
   if (e.key === 'a' || e.key === 'A') setMode('add');
   if ((e.key === 's' || e.key === 'S') && calib) setMode('addsrc');
+  if (e.key === 'w' || e.key === 'W') setMode('wall');
   if (e.key === 'c' || e.key === 'C') setMode('cal');
-  if (e.key === 'Escape') closeModals();
+  if (e.key === 'h' || e.key === 'H') openGuide();
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selWall) { e.preventDefault(); deleteWall(selWall); }
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'Shift') { mouseShift = false; if (mode === 'wall') draw(); }
 });
 function closeModals() {
   $('ptModal').classList.add('hidden'); $('calModal').classList.add('hidden'); $('srcModal').classList.add('hidden');
-  pendingPt = null; pendingSrc = null; calClicks = []; draw();
+  pendingPt = null; pendingSrc = null; calClicks = []; wallDraft = null; draw();
 }
 function updateStatus() {
   if (!baseImg || !mouseImg) return;
-  let s = `x ${Math.round(mouseImg.x)} px, y ${Math.round(mouseImg.y)} px`;
+  let s = mode === 'wall'
+    ? (wallDraft ? 'Click the next corner — double-click or Esc to finish, hold Shift for a straight line'
+                 : 'Click where the wall starts')
+      + '  |  ' : '';
+  s += `x ${Math.round(mouseImg.x)} px, y ${Math.round(mouseImg.y)} px`;
   const u = toUnits(mouseImg.x, mouseImg.y);
   if (u) s += `  |  x ${u.ux.toFixed(1)}, y ${u.uy.toFixed(1)} ${calib.unit}`;
   if (grid && mouseImg.x >= 0 && mouseImg.y >= 0 && mouseImg.x <= imgW && mouseImg.y <= imgH) {
@@ -847,13 +1536,14 @@ function updateStatus() {
 /* ============================ modes ================================= */
 function setMode(m) {
   mode = m; calClicks = []; closeModals();
-  for (const [id, mm] of [['modePan','pan'], ['modeAdd','add'], ['modeSrc','addsrc'], ['modeCal','cal']])
+  for (const [id, mm] of [['modePan','pan'], ['modeAdd','add'], ['modeSrc','addsrc'], ['modeWall','wall'], ['modeCal','cal']])
     $(id).classList.toggle('active', mm === m);
   cv.style.cursor = m === 'pan' ? 'grab' : 'crosshair';
-  draw();
+  draw(); updateStatus();
 }
 $('modePan').onclick = () => setMode('pan');
 $('modeAdd').onclick = () => setMode('add');
+$('modeWall').onclick = () => setMode('wall');
 $('modeSrc').onclick = () => {
   if (!calib) { alert('Calibrate the scale first (Section 6) — source distances are computed in real units.'); return; }
   setMode('addsrc');
@@ -902,7 +1592,7 @@ $('cmCancel').onclick = closeModals;
 function updateCalibInfo() {
   $('calibInfo').textContent = calib ? `${calib.pxPerUnit.toFixed(2)} px/${calib.unit}` : 'not set';
   $('originInfo').textContent = calib && calib.originSet ? 'origin set' : '';
-  rebuildPtTable();
+  rebuildPtTable(); rebuildWallTable(); syncHeightUI();
 }
 
 /* ========================== point table ============================ */
@@ -953,6 +1643,144 @@ $('btnClearPts').onclick = () => {
   if (points.length && !confirm('Remove all measurement points?')) return;
   points = []; rebuildPtTable(); recompute(true);
 };
+
+/* ============================ wall editing =========================== */
+// Snap a wall point: Shift locks horizontal/vertical from the current start; then the
+// nearest wall end within reach wins, otherwise the nearest point on a wall (T-joints).
+function snapWallPoint(x, y, shift, skip) {
+  if (shift && wallDraft) {
+    if (Math.abs(x - wallDraft.x) > Math.abs(y - wallDraft.y)) y = wallDraft.y; else x = wallDraft.x;
+  }
+  const r = 10 / view.scale;
+  let best = null, bd = r;
+  for (const w of walls) {
+    if (skip && skip.includes(w)) continue;
+    for (const [ex, ey] of [[w.x1, w.y1], [w.x2, w.y2]]) {
+      const d = Math.hypot(ex - x, ey - y);
+      if (d < bd) { bd = d; best = { x: ex, y: ey }; }
+    }
+  }
+  if (!best) {
+    bd = r;
+    for (const w of walls) {
+      if (skip && skip.includes(w)) continue;
+      const ex = w.x2 - w.x1, ey = w.y2 - w.y1, l2 = ex * ex + ey * ey;
+      if (!l2) continue;
+      const t = clamp(((x - w.x1) * ex + (y - w.y1) * ey) / l2, 0, 1);
+      const qx = w.x1 + t * ex, qy = w.y1 + t * ey, d = Math.hypot(qx - x, qy - y);
+      if (d < bd) { bd = d; best = { x: qx, y: qy }; }
+    }
+  }
+  return best ? { x: best.x, y: best.y, snapped: true } : { x, y, snapped: false };
+}
+function wallAt(x, y, r) {
+  let best = null, bd = r;
+  for (const w of walls) {
+    const d = segDist(x, y, w);
+    if (d < bd) { bd = d; best = w; }
+  }
+  return best;
+}
+function wallEndsAt(x, y, r) {   // every wall end at the nearest end point within r
+  let best = null, bd = r;
+  for (const w of walls)
+    for (const [ex, ey] of [[w.x1, w.y1], [w.x2, w.y2]]) {
+      const d = Math.hypot(ex - x, ey - y);
+      if (d < bd) { bd = d; best = [ex, ey]; }
+    }
+  if (!best) return null;
+  const ends = [];
+  for (const w of walls) {
+    if (Math.hypot(w.x1 - best[0], w.y1 - best[1]) < 0.5) ends.push({ w, end: 1 });
+    if (Math.hypot(w.x2 - best[0], w.y2 - best[1]) < 0.5) ends.push({ w, end: 2 });
+  }
+  return ends;
+}
+function selectWall(w) {
+  if (selWall === w) return;
+  selWall = w; rebuildWallTable(); draw();
+  const row = w && document.querySelector(`.wallRow[data-id="${w.id}"]`);
+  if (row) row.scrollIntoView({ block: 'nearest' });
+}
+function deleteWall(w) {
+  walls = walls.filter(q => q !== w);
+  if (selWall === w) selWall = null;
+  rebuildWallTable(); recompute(true);
+}
+function rebuildWallTable() {
+  const t = $('wallTable'); t.innerHTML = '';
+  const unit = calib ? calib.unit : 'm', u = unitM();
+  for (const w of walls) {
+    const box = document.createElement('div');
+    box.className = 'wallRow' + (w === selWall ? ' sel' : '');
+    box.dataset.id = w.id;
+    box.onclick = e => { if (!/^(INPUT|SELECT|BUTTON|OPTION)$/.test(e.target.tagName)) selectWall(w); };
+    const top = document.createElement('div'); top.className = 'wtop';
+    const name = document.createElement('span'); name.className = 'wname'; name.textContent = 'W' + w.id;
+    const typ = document.createElement('select');
+    for (const [key, p] of Object.entries(WALL_TYPES)) typ.add(new Option(p.name, key, false, key === w.type));
+    typ.title = 'Wall type (resets this wall’s values to the type’s defaults)';
+    typ.onchange = () => {
+      const p = WALL_TYPES[typ.value];
+      Object.assign(w, { type: typ.value, tl: p.tl, alpha: p.alpha, height: p.height });
+      rebuildWallTable(); recompute(true);
+    };
+    const del = document.createElement('button'); del.textContent = '✕'; del.title = 'Delete this wall';
+    del.onclick = () => deleteWall(w);
+    top.append(name, typ, del);
+    const bot = document.createElement('div'); bot.className = 'wbot';
+    const num = (val, step, min, max, title, apply) => {
+      const inp = document.createElement('input'); inp.type = 'number';
+      inp.step = step; inp.min = min; inp.max = max; inp.value = val; inp.title = title;
+      inp.onchange = () => {
+        const v = parseFloat(inp.value);
+        if (isNaN(v) || v < min || v > max) { inp.value = val; return; }
+        apply(v); recompute(true);
+      };
+      return inp;
+    };
+    if (w.height == null) {
+      bot.append('Blocks', num(w.tl, 1, 0, 60, 'Sound reduction through the wall (dB)', v => { w.tl = v; }), 'dB');
+    } else {
+      bot.append('Height', num(+(w.height / u).toFixed(2), 0.1, 0.1, 100, `Barrier height (${unit})`,
+                               v => { w.height = v * u; }), unit);
+    }
+    bot.append(' · Absorbs', num(Math.round(w.alpha * 100), 1, 0, 100, 'Share of sound absorbed instead of reflected (%)',
+                                     v => { w.alpha = v / 100; }), '%');
+    box.append(top, bot);
+    t.appendChild(box);
+  }
+  $('wallCount').textContent = walls.length
+    ? `${walls.length} wall section(s). In Pan mode, click a wall to select it, drag its round end handles to move it, and press Delete to remove it.`
+    : 'No walls drawn.';
+}
+for (const [key, p] of Object.entries(WALL_TYPES)) $('selWallType').add(new Option(p.name, key));
+$('selWallType').onchange = e => { wallType = e.target.value; draw(); };
+$('btnClearWalls').onclick = () => {
+  if (walls.length && !confirm('Remove all walls?')) return;
+  walls = []; selWall = null; wallDraft = null;
+  rebuildWallTable(); recompute(true);
+};
+function syncHeightUI() {   // heights are stored in meters and shown in the calibrated unit
+  const u = unitM();
+  $('numSrcH').value = +(S.srcHeight / u).toFixed(2);
+  $('numEarH').value = +(S.earHeight / u).toFixed(2);
+  document.querySelectorAll('.hUnit').forEach(el => { el.textContent = calib ? calib.unit : 'm'; });
+}
+
+/* ============================= user guide ============================ */
+function openGuide() { $('guide').classList.remove('hidden'); }
+function closeGuide() { $('guide').classList.add('hidden'); }
+$('btnGuide').onclick = openGuide;
+$('btnGuide2').onclick = () => $('guide').classList.contains('hidden') ? openGuide() : closeGuide();
+$('btnGuideClose').onclick = closeGuide;
+$('guide').addEventListener('click', e => {   // contents links scroll the guide only
+  const a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  e.preventDefault();
+  const target = document.getElementById(a.getAttribute('href').slice(1));
+  if (target) $('guide').querySelector('.gbody').scrollTo({ top: target.offsetTop - 6 });
+});
 
 /* ============================ bands UI ============================== */
 function rebuildBandsUI() {
@@ -1006,8 +1834,17 @@ $('numMask').onchange = e => { S.maskDist = Math.max(0, parseFloat(e.target.valu
 $('selStyle').onchange = e => { S.smooth = e.target.value === 'smooth'; recompute(); };
 $('rngOpacity').oninput = e => { S.opacity = parseFloat(e.target.value); $('valOpacity').textContent = Math.round(S.opacity*100)+'%'; draw(); };
 for (const [id, key] of [['chkContours','showContours'], ['chkClabels','showClabels'],
-                         ['chkMarkers','showMarkers'], ['chkMlabels','showMlabels'], ['chkLegend','showLegend']])
+                         ['chkMarkers','showMarkers'], ['chkMlabels','showMlabels'], ['chkLegend','showLegend'],
+                         ['chkWalls','showWalls']])
   $(id).onchange = e => { S[key] = e.target.checked; draw(); };
+for (const [id, key] of [['chkWallInterp','wallsInterp'], ['chkWallBlock','wallsBlock'], ['chkWallReflect','wallReflect']])
+  $(id).onchange = e => { S[key] = e.target.checked; recompute(); };
+for (const [id, key] of [['numSrcH','srcHeight'], ['numEarH','earHeight']])
+  $(id).onchange = e => {
+    const v = parseFloat(e.target.value);
+    if (isNaN(v) || v < 0) { syncHeightUI(); return; }
+    S[key] = v * unitM(); recompute();
+  };
 $('txtTitle').onchange = () => {};
 
 /* ========================= floor plan load ========================== */
@@ -1101,7 +1938,7 @@ let markSavedOnLoad = false;     // take the snapshot once the pending image fin
 function projectJSON() {
   return JSON.stringify({ app: 'noise-contour-mapper', version: 1,
     title: $('txtTitle').value, image: baseDataURL, points, nextId, sources, nextSrcId,
-    edges, colors, settings: S, calib });
+    walls, nextWallId, edges, colors, settings: S, calib });
 }
 window.addEventListener('beforeunload', e => {
   if (!baseImg && !points.length && !sources.length) return;
@@ -1121,8 +1958,10 @@ $('fileProj').onchange = async e => {
     if (proj.app !== 'noise-contour-mapper') throw new Error('Not a Noise Contour Mapper project file.');
     points = proj.points || []; nextId = proj.nextId || (points.length + 1);
     sources = proj.sources || []; nextSrcId = proj.nextSrcId || (sources.length + 1);
+    walls = proj.walls || []; nextWallId = proj.nextWallId || (walls.length + 1);
+    selWall = null; wallDraft = null;
     edges = proj.edges || DEFAULT_EDGES.slice(); colors = proj.colors || DEFAULT_COLORS.slice();
-    Object.assign(S, proj.settings || {});
+    Object.assign(S, DEFAULT_S, proj.settings || {});
     calib = proj.calib || null;
     $('txtTitle').value = proj.title || 'Noise Contour Map';
     // sync controls
@@ -1133,6 +1972,8 @@ $('fileProj').onchange = async e => {
     $('rngOpacity').value = S.opacity; $('valOpacity').textContent = Math.round(S.opacity*100)+'%';
     $('chkContours').checked = S.showContours; $('chkClabels').checked = S.showClabels;
     $('chkMarkers').checked = S.showMarkers; $('chkMlabels').checked = S.showMlabels; $('chkLegend').checked = S.showLegend;
+    $('chkWalls').checked = S.showWalls; $('chkWallInterp').checked = S.wallsInterp;
+    $('chkWallBlock').checked = S.wallsBlock; $('chkWallReflect').checked = S.wallReflect;
     updateCalibInfo(); rebuildBandsUI(); rebuildPtTable(); rebuildSrcTable();
     if (proj.image) { markSavedOnLoad = true; setImage(proj.image); }
     else { baseImg = null; draw(); savedSnapshot = projectJSON(); }
@@ -1153,17 +1994,25 @@ $('btnPng').onclick = () => {
   // title block
   const title = $('txtTitle').value.trim();
   if (title) {
+    const meth = S.method === 'source' ? `Source model + residual correction (${sources.length} sources)`
+               : S.method === 'rbf' && rbfW ? 'RBF (multiquadric)' : `IDW (p=${S.power})`;
+    const wopts = [];
+    if (S.method === 'source' && S.wallsBlock) wopts.push('blocking');
+    if (S.method === 'source' && S.wallReflect) wopts.push('reflections');
+    if (S.wallsInterp) wopts.push('readings bounded by walls');
+    const wallNote = walls.length ? `  ·  ${walls.length} walls${wopts.length ? ' (' + wopts.join(', ') + ')' : ''}` : '';
+    const meta = `${new Date().toISOString().slice(0,10)}  ·  ${points.length} measurements  ·  ${meth}${wallNote}  ·  © 2026 Mark Huang`;
+    c.font = `${10*k}px Segoe UI, sans-serif`;
+    const mw = c.measureText(meta).width;
     c.font = `bold ${15*k}px Segoe UI, sans-serif`;
-    const tw = c.measureText(title).width;
+    const tw = Math.max(c.measureText(title).width, mw);
     c.fillStyle = 'rgba(255,255,255,0.93)';
     c.strokeStyle = '#98a4b3'; c.lineWidth = 1*k;
     c.beginPath(); c.roundRect(12*k, 12*k, tw + 22*k, 44*k, 6*k); c.fill(); c.stroke();
     c.fillStyle = '#1a355e'; c.textAlign = 'left'; c.textBaseline = 'top';
     c.fillText(title, 22*k, 19*k);
     c.font = `${10*k}px Segoe UI, sans-serif`; c.fillStyle = '#666';
-    const meth = S.method === 'source' ? `Source model + residual correction (${sources.length} sources)`
-               : S.method === 'rbf' ? 'RBF (multiquadric)' : `IDW (p=${S.power})`;
-    c.fillText(`${new Date().toISOString().slice(0,10)}  ·  ${points.length} measurements  ·  ${meth}  ·  © 2026 Mark Huang`, 22*k, 38*k);
+    c.fillText(meta, 22*k, 38*k);
   }
   const b64 = ec.toDataURL('image/png').split(',')[1];
   const bin = atob(b64);
@@ -1178,12 +2027,18 @@ $('btnDemo').onclick = () => {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
-  g.strokeStyle = '#444'; g.lineWidth = 6;
-  g.strokeRect(40, 40, W - 80, H - 80);
-  g.lineWidth = 4;
-  const wall = (x1, y1, x2, y2) => { g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
-  wall(520, 40, 520, 860); wall(900, 40, 900, 860);
-  wall(40, 500, 900, 500); wall(900, 300, 1360, 300);
+  // demo walls, with gaps for doorways: [x1, y1, x2, y2, type]
+  const demoWalls = [
+    [40, 40, 1360, 40, 'concrete'], [1360, 40, 1360, 860, 'concrete'],
+    [1360, 860, 40, 860, 'concrete'], [40, 860, 40, 40, 'concrete'],
+    [520, 40, 520, 380, 'concrete'], [520, 440, 520, 700, 'concrete'], [520, 760, 520, 860, 'concrete'],
+    [900, 40, 900, 600, 'concrete'], [900, 680, 900, 860, 'concrete'],
+    [40, 500, 520, 500, 'drywall'], [520, 500, 680, 500, 'concrete'], [760, 500, 900, 500, 'concrete'],
+    [900, 300, 1180, 300, 'panels'], [1240, 300, 1360, 300, 'panels'],
+    [430, 140, 430, 330, 'barrier']
+  ];
+  g.strokeStyle = '#555'; g.lineWidth = 4;
+  for (const [x1, y1, x2, y2] of demoWalls) { g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
   g.fillStyle = '#e8e8e8';
   g.fillRect(90, 90, 130, 90); g.fillRect(280, 200, 130, 90); g.fillRect(120, 330, 130, 90); // presses
   g.fillRect(1000, 90, 150, 100);                                                            // compressor
@@ -1211,6 +2066,8 @@ $('btnDemo').onclick = () => {
     { id: nextSrcId++, label: 'Press B', x: 345, y: 245, db: 99, refDist: 1 },
     { id: nextSrcId++, label: 'Compressor', x: 1075, y: 140, db: 99, refDist: 1 }
   ];
+  nextWallId = 1; selWall = null; wallDraft = null;
+  walls = demoWalls.map(([x1, y1, x2, y2, type]) => newWall(x1, y1, x2, y2, type));
   rebuildSrcTable();
   updateCalibInfo();
   $('txtTitle').value = 'Demo Facility — Noise Contour Map';
@@ -1221,6 +2078,8 @@ $('btnDemo').onclick = () => {
 rebuildBandsUI();
 rebuildPtTable();
 rebuildSrcTable();
+rebuildWallTable();
+syncHeightUI();
 setMode('pan');
 draw();
 </script>
