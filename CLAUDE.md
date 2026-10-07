@@ -32,6 +32,16 @@ in the user's browser, and floor plans and measurements are never uploaded anywh
   walls", IDW/RBF/residual distances go around full-height walls; walled-off areas with
   no reachable reading are blank. The physics grid is cached (`srcGrid`) and only
   recomputed when sources, walls, scale or wall settings change.
+- **Rooms (added Oct 2026, v1.2.0):** room polygons in image px with ceiling `height`
+  (m), `finish` preset (`ROOM_FINISHES`) and `alpha`. `roomAcoustics()` samples each
+  room edge every 0.25 m to find walls vs openings to neighboring rooms (doorway height
+  for open runs up to 8 m, full height beyond), giving coupling areas `C`;
+  `solveReverb()` solves the coupled Sabine equations
+  `e_i(A_i + ΣC_ij) − ΣC_ij e_j = (1−ᾱ_i)(4W_i + S_i⟨e_d⟩_i)`, where `⟨e_d⟩_i` is the
+  grid-average direct energy from sources outside room i. One isolated room equals the
+  textbook `Lw + 10log10(4/R)`. With rooms, residual corrections stay within each room
+  that has readings. Python: section 10 (`room_acoustics`, `solve_reverberation`,
+  `WalledSourceModel(rooms=..., room_grid=(gx, gy))`), parity ~1e-14 dB.
 - **User guide:** the in-app guide (`#guide`, opened with **? Guide** or H) is the main
   instructions for use. Keep it, the README, and `Noise Contour Mapper - Installation
   Guide.docx` (Quick Start, calculation sections, troubleshooting) in step with features.
@@ -60,11 +70,9 @@ under Apache 2.0, which `LICENSE` carves out.
 
 ## Roadmap (Mark's phased plan)
 1. Done: online version (GitHub Pages and Artifact), the copyright notice, no-storage
-   data handling, and walls/barriers/reflections with the built-in user guide.
+   data handling, walls/barriers/reflections with the built-in user guide, and
+   room reverberation (v1.2.0).
 2. Next options, in any order Mark chooses:
-   - **Reverberant-room setting:** per-room diffuse-field term (room size and surface
-     finishes) so levels stop dropping with distance in large hard rooms; it would also
-     soften the line-of-sight "beams" the free-field model shows through doorways.
    - **Environmental/outdoor mode:** simplified ISO 9613-2 propagation (atmospheric
      absorption, ground effect, Maekawa barriers) as another method choice.
    - **Real-map input:** OpenStreetMap underlay (Leaflet) with GPS coordinates.

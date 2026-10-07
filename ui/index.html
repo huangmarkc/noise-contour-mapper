@@ -150,6 +150,14 @@
     </div>
 
     <div class="sec">
+      <h2>2d &middot; Rooms &amp; reverberation (optional)</h2>
+      <div class="hint">In a hard room, sound bounces around and builds up, so levels stop falling off with distance. Use <b>Draw room</b> in the toolbar to trace each room&rsquo;s outline along its walls: click each corner, then click the first corner again (or double-click) to close it. Then set the ceiling height and finish below. Used by the <b>Source model</b>; needs the scale (Section 6).</div>
+      <div id="roomTable"></div>
+      <div class="hint" id="roomCount"></div>
+      <div class="row"><button id="btnClearRooms" class="warn">Remove all rooms</button></div>
+    </div>
+
+    <div class="sec">
       <h2>3 &middot; Calculation</h2>
       <div class="row"><label>Method</label>
         <select id="selMethod">
@@ -168,6 +176,9 @@
       <div class="row"><label>Machine height</label><input type="number" id="numSrcH" step="0.1" min="0" value="1"><span class="hUnit">m</span></div>
       <div class="row"><label>Ear height</label><input type="number" id="numEarH" step="0.1" min="0" value="1.5"><span class="hUnit">m</span></div>
       <div class="hint">Heights are used only for partial barriers (sound bending over the top).</div>
+      <div class="row"><label><input type="checkbox" id="chkRoomReverb" checked> Room reverberation <span class="hint">(source model)</span></label></div>
+      <div class="row"><label>Doorway height</label><input type="number" id="numDoorH" step="0.1" min="0.5" value="3"><span class="hUnit">m</span></div>
+      <div class="hint">Gaps up to 8&nbsp;m wide in the walls between rooms are treated as doorways of this height; wider gaps as open plan.</div>
       <div class="hint" id="calcNote" style="color:#b03a2e"></div>
     </div>
 
@@ -182,7 +193,8 @@
       <div class="row"><label><input type="checkbox" id="chkMarkers" checked> Point markers</label>
                        <label><input type="checkbox" id="chkMlabels" checked> dBA labels</label></div>
       <div class="row"><label><input type="checkbox" id="chkLegend" checked> Legend</label>
-                       <label><input type="checkbox" id="chkWalls" checked> Walls</label></div>
+                       <label><input type="checkbox" id="chkWalls" checked> Walls</label>
+                       <label><input type="checkbox" id="chkRooms" checked> Rooms</label></div>
     </div>
 
     <div class="sec">
@@ -237,6 +249,7 @@
       <button class="modeBtn" id="modeAdd" title="Click plan to add measurement (A)">&#10133; Add points</button>
       <button class="modeBtn" id="modeSrc" title="Click plan to add a noise source (S)">&#128266; Add source</button>
       <button class="modeBtn" id="modeWall" title="Click along a wall; double-click or Esc to finish (W)">&#129521; Draw wall</button>
+      <button class="modeBtn" id="modeRoom" title="Click each corner of a room; click the first corner or double-click to close (R)">&#127968; Draw room</button>
       <button class="modeBtn" id="modeCal" title="Click two points of known distance (C)">&#128207; Calibrate</button>
       <span class="spacer"></span>
       <button class="sec2" id="btnGuide2" title="User guide (H)">? Guide</button>
@@ -273,7 +286,7 @@
         <div class="ghead"><h2>Noise Contour Mapper &mdash; User Guide</h2><button id="btnGuideClose">Close</button></div>
         <div class="gbody">
           <p>This tool turns your sound level meter readings into a color-coded <b>noise map</b> drawn over a floor plan. Each area is colored by its noise level &mdash; for example, red for 90&ndash;95&nbsp;dBA &mdash; and <b>contour lines</b> mark the boundaries between levels, such as the 85&nbsp;dBA line. Use it to plan hearing-conservation zones, find loud areas, and explain noise risk to others.</p>
-          <div class="tip"><b>Your data stays with you.</b> Nothing you load or type is uploaded or stored anywhere. Closing or reloading the page erases your work, so save your project (step&nbsp;9) before you leave.</div>
+          <div class="tip"><b>Your data stays with you.</b> Nothing you load or type is uploaded or stored anywhere. Closing or reloading the page erases your work, so save your project (step&nbsp;10) before you leave.</div>
 
           <h4>Contents</h4>
           <ul class="toc">
@@ -282,12 +295,13 @@
             <li><a href="#g-scale">Step 2 &mdash; Set the scale</a></li>
             <li><a href="#g-points">Step 3 &mdash; Add your measurements</a></li>
             <li><a href="#g-walls">Step 4 &mdash; Draw walls and barriers</a></li>
-            <li><a href="#g-sources">Step 5 &mdash; Add noise sources</a></li>
-            <li><a href="#g-method">Step 6 &mdash; Choose the calculation</a></li>
-            <li><a href="#g-look">Step 7 &mdash; Adjust how the map looks</a></li>
-            <li><a href="#g-read">Step 8 &mdash; Read the map</a></li>
-            <li><a href="#g-save">Step 9 &mdash; Save and export</a></li>
-            <li><a href="#g-how">How walls change the calculation</a></li>
+            <li><a href="#g-rooms">Step 5 &mdash; Draw rooms (reverberation)</a></li>
+            <li><a href="#g-sources">Step 6 &mdash; Add noise sources</a></li>
+            <li><a href="#g-method">Step 7 &mdash; Choose the calculation</a></li>
+            <li><a href="#g-look">Step 8 &mdash; Adjust how the map looks</a></li>
+            <li><a href="#g-read">Step 9 &mdash; Read the map</a></li>
+            <li><a href="#g-save">Step 10 &mdash; Save and export</a></li>
+            <li><a href="#g-how">How walls and rooms change the calculation</a></li>
             <li><a href="#g-limits">Limits and good practice</a></li>
             <li><a href="#g-keys">Keyboard shortcuts</a></li>
             <li><a href="#g-trouble">Troubleshooting</a></li>
@@ -378,7 +392,43 @@
           </ul>
           <p><b>On the map:</b> <span class="swatch" style="color:#37474f"></span>dark solid line = wall &nbsp;&middot;&nbsp; <span class="swatch" style="color:#00897b"></span>teal line = sound-absorbing wall (absorbs 30% or more) &nbsp;&middot;&nbsp; <span class="swatch" style="color:#6d4c41; border-top-style:dashed"></span>brown dashed line = partial barrier.</p>
 
-          <h3 id="g-sources">Step 5 &mdash; Add noise sources <span class="hint">(optional, section 2b)</span></h3>
+
+          <h3 id="g-rooms">Step 5 &mdash; Draw rooms for reverberation <span class="hint">(optional, section 2d)</span></h3>
+          <p>In a hard room &mdash; bare concrete, metal, few soft surfaces &mdash; sound bounces around and builds up. The further you are from a machine, the more of what you hear is this bounced, <b>reverberant</b> sound, so levels stop dropping off with distance. Drawing rooms lets the source model add it. It also lets sound from a loud room spill into the rooms next to it through doorways.</p>
+          <h4>How to draw a room</h4>
+          <ol>
+            <li>Make sure the scale is set (step&nbsp;2) and the walls are drawn (step&nbsp;4).</li>
+            <li>Click <b>Draw room</b> in the toolbar, or press <kbd>R</kbd>.</li>
+            <li>Click each corner of the room, going around it. Corners snap onto walls, wall ends and other rooms&rsquo; corners (a pink circle appears).</li>
+            <li>To close the room, click the first corner again, or double-click. Press <kbd>Esc</kbd> to cancel a room you are drawing.</li>
+            <li>Set the room&rsquo;s <b>Finish</b> and <b>Ceiling</b> height in section&nbsp;2d.</li>
+          </ol>
+          <h4>Drawing tips</h4>
+          <ul>
+            <li><b>Trace each room along its walls, and let neighboring rooms share their edges.</b> The tool finds the openings between two rooms by looking for gaps in the walls along their shared edge.</li>
+            <li><b>Doorways:</b> a gap of up to 8&nbsp;m in the walls between two rooms counts as a doorway of the <b>Doorway height</b> (section&nbsp;3, default 3&nbsp;m). A wider gap counts as open plan, open to the full ceiling height.</li>
+            <li>An edge of a room with no wall and no neighboring room counts as a solid wall of that room.</li>
+            <li>Rooms shouldn&rsquo;t overlap.</li>
+          </ul>
+          <h4>Room settings</h4>
+          <ul>
+            <li><b>Name</b> &mdash; shown on the map.</li>
+            <li><b>Finish</b> &mdash; how much sound the room&rsquo;s surfaces soak up on average. Pick the closest description (see the table).</li>
+            <li><b>Ceiling</b> &mdash; the ceiling height, used for the room&rsquo;s volume and surface area.</li>
+            <li><b>Absorbs</b> &mdash; the average absorption itself, if you want to fine-tune it.</li>
+            <li><b>Reverb. time</b> &mdash; the reverberation time (T60): how many seconds a sound takes to die away after it stops. The tool calculates it from the room. <b>If you have measured it, type your value in</b>, and the tool sets the absorption to match.</li>
+          </ul>
+          <div class="tblwrap"><table>
+            <tr><th>Finish</th><th>Absorbs</th><th>Reverberation time, e.g. 30&nbsp;&times;&nbsp;30&nbsp;m room, 6&nbsp;m high</th></tr>
+            <tr><td>Hard: bare concrete or metal, few contents</td><td class="num">5%</td><td class="num">about 7 s</td></tr>
+            <tr><td>Typical factory: machinery and stock</td><td class="num">10%</td><td class="num">about 3.4 s</td></tr>
+            <tr><td>Partly treated: e.g. insulated roof</td><td class="num">20%</td><td class="num">about 1.7 s</td></tr>
+            <tr><td>Treated: acoustic ceiling or wall panels</td><td class="num">35%</td><td class="num">about 1.0 s</td></tr>
+            <tr><td>Highly treated: absorptive ceiling and walls</td><td class="num">50%</td><td class="num">about 0.7 s</td></tr>
+          </table></div>
+          <p><b>Changing rooms:</b> with <b>Pan / select</b> chosen, click a room&rsquo;s name on the map to select it (it turns blue). Drag its round corner handles to reshape it, or press <kbd>Delete</kbd> to remove it. You can also click its row in section&nbsp;2d.</p>
+
+          <h3 id="g-sources">Step 6 &mdash; Add noise sources <span class="hint">(optional, section 2b)</span></h3>
           <p>Noise sources are the machines you know about. With them, the tool can <i>calculate</i> noise from physics &mdash; including walls and reflections &mdash; instead of only filling in between your readings.</p>
           <ol>
             <li>Make sure the scale is set (step&nbsp;2).</li>
@@ -388,12 +438,12 @@
           </ol>
           <p>Sources appear as orange diamonds. Drag them with <b>Pan / select</b>, and change their levels in section&nbsp;2b.</p>
 
-          <h3 id="g-method">Step 6 &mdash; Choose the calculation <span class="hint">(section 3)</span></h3>
+          <h3 id="g-method">Step 7 &mdash; Choose the calculation <span class="hint">(section 3)</span></h3>
           <div class="tblwrap"><table>
             <tr><th>Method</th><th>How it works</th><th>Best for</th><th>Watch out for</th></tr>
             <tr><td><b>Inverse distance (IDW)</b> &mdash; default</td><td>Each spot gets an average of the readings, with closer readings counting more.</td><td>Plenty of readings, spread evenly</td><td>It can&rsquo;t show a loud spot you didn&rsquo;t measure.</td></tr>
             <tr><td><b>Radial basis (multiquadric)</b></td><td>Fits one smooth surface through all the readings.</td><td>Fewer readings over an open area</td><td>It can overshoot near the edges of the survey. It can&rsquo;t be used when walls completely separate rooms; the tool then shows IDW and tells you so.</td></tr>
-            <tr><td><b>Source model + residuals</b></td><td>Calculates the noise from each machine, including walls and reflections, then adjusts the whole map so it matches every reading exactly.</td><td>When you know the main machines; &ldquo;what if&rdquo; questions such as moving, adding or screening a machine</td><td>Needs the scale and at least one source.</td></tr>
+            <tr><td><b>Source model + residuals</b></td><td>Calculates the noise from each machine, including walls, reflections and room reverberation, then adjusts the whole map so it matches every reading exactly.</td><td>When you know the main machines; &ldquo;what if&rdquo; questions such as moving, adding or screening a machine</td><td>Needs the scale and at least one source.</td></tr>
           </table></div>
           <p><b>Other settings:</b></p>
           <ul>
@@ -408,34 +458,39 @@
             <li><b>Walls reflect sound</b> (source model) &mdash; hard walls bounce sound back, raising levels near them: about 3&nbsp;dB beside a hard wall, more in corners. Sound-absorbing walls reflect much less.</li>
             <li><b>Machine height</b> and <b>Ear height</b> &mdash; used only for partial barriers. The defaults are 1.0&nbsp;m for the noisy part of the machine and 1.5&nbsp;m for a standing worker&rsquo;s ear.</li>
           </ul>
-          <div class="tip"><b>Tip:</b> switch each wall setting off and on to see how much it changes the map. This also helps you explain the effect of walls to others.</div>
+          <h4>Room settings</h4>
+          <ul>
+            <li><b>Room reverberation</b> (source model) &mdash; adds each room&rsquo;s reverberant sound, as described in step&nbsp;5.</li>
+            <li><b>Doorway height</b> &mdash; the height of the doorways between rooms (gaps up to 8&nbsp;m wide). Taller doorways let more sound through.</li>
+          </ul>
+          <div class="tip"><b>Tip:</b> switch each wall and room setting off and on to see how much it changes the map. This also helps you explain the effect of walls and rooms to others.</div>
 
-          <h3 id="g-look">Step 7 &mdash; Adjust how the map looks <span class="hint">(sections 4 and 5)</span></h3>
+          <h3 id="g-look">Step 8 &mdash; Adjust how the map looks <span class="hint">(sections 4 and 5)</span></h3>
           <ul>
             <li><b>Heat map style</b> &mdash; <i>Banded</i> gives one solid color per noise band; <i>Smooth gradient</i> blends between them.</li>
             <li><b>Overlay opacity</b> &mdash; how see-through the colors are, so the plan shows underneath.</li>
-            <li><b>Checkboxes</b> &mdash; show or hide contour lines, contour labels, point markers, dBA labels, the legend and the walls.</li>
+            <li><b>Checkboxes</b> &mdash; show or hide contour lines, contour labels, point markers, dBA labels, the legend, the walls and the rooms.</li>
             <li><b>Noise bands</b> (section&nbsp;5) &mdash; the defaults are below 80, 80&ndash;85, 85&ndash;90, 90&ndash;95 and above 95&nbsp;dBA. Type a new number to move a boundary, click a color to change it, or use <b>+ Add band</b>, <b>&minus; Remove top band</b> and <b>Reset</b>. A contour line is drawn at every boundary.</li>
           </ul>
 
-          <h3 id="g-read">Step 8 &mdash; Read the map</h3>
+          <h3 id="g-read">Step 9 &mdash; Read the map</h3>
           <ul>
             <li>Each color shows the estimated noise band (see the legend). The numbered contour lines mark the boundaries, for example the line labeled <b>85</b>.</li>
             <li>Move the mouse over the map. The bar at the bottom shows the position and the <b>estimated level at that spot</b>.</li>
             <li>A <b>blank (uncolored) area</b> has no estimate. Either it is beyond the <b>Mask</b> distance, or walls close it off from every reading.</li>
           </ul>
 
-          <h3 id="g-save">Step 9 &mdash; Save and export <span class="hint">(section 7)</span></h3>
+          <h3 id="g-save">Step 10 &mdash; Save and export <span class="hint">(section 7)</span></h3>
           <ul>
             <li><b>Map title</b> &mdash; printed on the exported map.</li>
-            <li><b>Save project</b> &mdash; saves everything (plan, readings, sources, walls and settings) in one <code>.json</code> file. Click <b>Open project</b> later to carry on exactly where you left off.</li>
+            <li><b>Save project</b> &mdash; saves everything (plan, readings, sources, walls, rooms and settings) in one <code>.json</code> file. Click <b>Open project</b> later to carry on exactly where you left off.</li>
             <li><b>Export map as PNG</b> &mdash; an image for reports, with the legend, scale bar, title, date and calculation method.</li>
             <li><b>Export CSV</b> (section&nbsp;2) &mdash; your readings as a spreadsheet file.</li>
           </ul>
           <p>Each time, you choose where the file goes, such as your Desktop or your own cloud drive. In Chrome and Edge a <b>Save</b> window opens. Firefox and Safari put the file in your downloads folder instead.</p>
           <div class="tip warnbox"><b>Nothing is stored for you.</b> If you close or reload the page without saving, your work is gone. The page warns you if you try to leave with unsaved changes.</div>
 
-          <h3 id="g-how">How walls change the calculation</h3>
+          <h3 id="g-how">How walls and rooms change the calculation</h3>
           <p>In the <b>source model</b>, sound can reach a spot from each machine in up to four ways. The tool works out each one:</p>
           <ol>
             <li><b>Straight through.</b> Sound loses strength with distance (6&nbsp;dB quieter each time the distance doubles). Each wall it passes through takes off that wall&rsquo;s <b>Blocks</b> value.</li>
@@ -443,14 +498,18 @@
             <li><b>Over a partial barrier.</b> Sound bends over the top. The reduction depends on how far the barrier rises above the line between the machine and the listener&rsquo;s ear, again up to 20&nbsp;dB.</li>
             <li><b>Reflected off a wall.</b> Each wall acts like a mirror and bounces each machine&rsquo;s sound back once. Sound-absorbing walls bounce back less.</li>
           </ol>
-          <p>These routes are added the way sound adds: two equal sounds together are 3&nbsp;dB louder, not twice the number. Finally, the whole map is adjusted so it matches your readings exactly. That adjustment also covers effects the tool doesn&rsquo;t model, and it too goes around walls rather than through them.</p>
+          <p>With <b>rooms</b> drawn, a fifth part is added:</p>
+          <ol start="5">
+            <li><b>Reverberation.</b> Inside each room, the tool adds the bounced sound that builds up, using the standard room-acoustics formula. It depends on the machines&rsquo; sound power and on the room&rsquo;s surface area and absorption. It is the same everywhere in the room, so far from the machines it keeps levels from dropping away. Rooms also pass sound to each other: each room&rsquo;s reverberant sound spills through the doorways and, much less, through the walls into the rooms next to it, and direct sound arriving from machines in other rooms adds to a room&rsquo;s reverberation too.</li>
+          </ol>
+          <p>All of these are added the way sound adds: two equal sounds together are 3&nbsp;dB louder, not twice the number. Finally, the whole map is adjusted so it matches your readings exactly. That adjustment also covers effects the tool doesn&rsquo;t model, and it too goes around walls rather than through them. With rooms drawn, <b>each room is adjusted by its own readings</b>; a room without readings borrows its neighbors&rsquo; adjustment.</p>
           <p>For <b>IDW</b> and <b>Radial basis</b>, walls don&rsquo;t change any acoustics. They only stop readings influencing the far side of a wall, except through openings.</p>
 
           <h3 id="g-limits">Limits and good practice</h3>
           <p>The tool keeps the physics simple so that it is quick and easy to check. It does <b>not</b> model:</p>
           <ul>
             <li>Sound bouncing off two or more walls in a row, or off the ceiling and floor.</li>
-            <li>The general build-up of sound in large, hard rooms (reverberation), where levels stop dropping with distance.</li>
+            <li>Uneven reverberation. The reverberant sound is taken as evenly spread through each room. In very long, low halls it really fades slowly with distance, so far from the machines the map may read a little high. Rooms you don&rsquo;t draw get no reverberation at all.</li>
             <li>Pitch. Everything is in single dBA values, but real walls and barriers block high-pitched noise better than low rumble.</li>
             <li>The size of machines. Each machine is treated as a single point; long machines and conveyors are really spread out.</li>
             <li>Changing noise. Steady noise is assumed; impacts, tones and on/off cycles are not modeled.</li>
@@ -465,10 +524,12 @@
             <tr><td><kbd>A</kbd></td><td>Add points</td></tr>
             <tr><td><kbd>S</kbd></td><td>Add source (after the scale is set)</td></tr>
             <tr><td><kbd>W</kbd></td><td>Draw wall</td></tr>
+            <tr><td><kbd>R</kbd></td><td>Draw room</td></tr>
             <tr><td><kbd>C</kbd></td><td>Calibrate the scale</td></tr>
-            <tr><td><kbd>Shift</kbd> while drawing</td><td>Straight horizontal or vertical wall</td></tr>
+            <tr><td><kbd>Shift</kbd> while drawing</td><td>Straight horizontal or vertical line</td></tr>
             <tr><td>Double-click or <kbd>Esc</kbd></td><td>Finish the wall you are drawing</td></tr>
-            <tr><td><kbd>Delete</kbd></td><td>Delete the selected wall</td></tr>
+            <tr><td>Click the first corner, or double-click</td><td>Close the room you are drawing (<kbd>Esc</kbd> cancels it)</td></tr>
+            <tr><td><kbd>Delete</kbd></td><td>Delete the selected wall or room</td></tr>
             <tr><td><kbd>Enter</kbd></td><td>Confirm an entry box</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>Close an entry box or this guide</td></tr>
             <tr><td><kbd>H</kbd></td><td>Open this guide</td></tr>
@@ -483,6 +544,9 @@
             <tr><td>Color &ldquo;leaks&rdquo; through a wall</td><td>There is probably a small gap at a corner. In Pan mode, drag the wall end onto the other wall until the pink circle appears.</td></tr>
             <tr><td>&ldquo;Radial basis can&rsquo;t connect&hellip;&rdquo; message</td><td>Walls completely separate some readings from others. The map uses IDW instead. Add a doorway gap if there really is an opening.</td></tr>
             <tr><td>Walls make no difference</td><td>Check the wall settings in section&nbsp;3 are ticked. Blocking and reflections only apply to the source model.</td></tr>
+            <tr><td>A whole room is about the same color</td><td>That is reverberation evening out the room, as in real hard rooms. If it looks too loud or too quiet, check the room&rsquo;s <b>Finish</b> and <b>Ceiling</b>, or type in a measured reverberation time. Readings in the room also correct it.</td></tr>
+            <tr><td>Rooms make no difference</td><td>Rooms only affect the source model, with <b>Room reverberation</b> ticked (section&nbsp;3) and the scale set.</td></tr>
+            <tr><td>A doorway between two rooms has no effect</td><td>The two rooms must share an edge across the doorway. Drag the rooms&rsquo; corners until they snap together.</td></tr>
             <tr><td>Imported points land in the wrong place</td><td>Check the units list next to <b>Import CSV</b>. For meters/feet, set the scale and the origin first.</td></tr>
             <tr><td>A PDF shows the wrong page</td><td>Only page 1 is used. Save the page you need as its own PDF or image.</td></tr>
           </table></div>
@@ -512,7 +576,8 @@ const S = {                          // settings
   opacity: 0.55, smooth: false,
   showContours: true, showClabels: true, showMarkers: true, showMlabels: true, showLegend: true,
   showWalls: true, wallsInterp: true, wallsBlock: true, wallReflect: true,
-  srcHeight: 1.0, earHeight: 1.5      // m; used only for partial-barrier screening
+  srcHeight: 1.0, earHeight: 1.5,     // m; used only for partial-barrier screening
+  showRooms: true, roomReverb: true, doorHeight: 3.0   // m: height of doorway gaps between rooms
 };
 const DEFAULT_S = Object.assign({}, S);
 let calib = null;                    // {pxPerUnit, unit, x1,y1,x2,y2, dist}
@@ -841,8 +906,163 @@ function pathLoss(ax, ay, bx, by, skip) {
   return { db: tl + scr, full };
 }
 
+/* ============================== rooms =============================== */
+// Rooms are outlines on the plan (image px). In the source model each room adds the
+// reverberant (diffuse) sound that builds up inside it: Sabine's room equation, with
+// rooms coupled to each other through the openings and walls between them.
+const ROOM_FINISHES = {
+  hard:    { name: 'Hard: bare concrete or metal, few contents',  alpha: 0.05 },
+  typical: { name: 'Typical factory: machinery and stock',         alpha: 0.10 },
+  partly:  { name: 'Partly treated: e.g. insulated roof',          alpha: 0.20 },
+  treated: { name: 'Treated: acoustic ceiling or wall panels',     alpha: 0.35 },
+  high:    { name: 'Highly treated: absorptive ceiling and walls', alpha: 0.50 }
+};
+const OPEN_PLAN_M = 8;               // open stretches between rooms longer than this are open plan (full height)
+let rooms = [];                      // {id, name, pts: [[x, y], ...] (image px), height (m), finish, alpha}
+let nextRoomId = 1;
+let roomDraft = null;                // corners placed so far while drawing a room
+let selRoom = null;
+let roomE = null;                    // reverberant energy per room, for the current physics grid
+
+function newRoom(pts, finish = 'typical', height = 6) {
+  const id = nextRoomId++;
+  return { id, name: 'Room ' + id, pts, height, finish, alpha: ROOM_FINISHES[finish].alpha };
+}
+function pointInPoly(x, y, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function roomAt(x, y, skip = -1) {
+  for (let r = 0; r < rooms.length; r++) if (r !== skip && pointInPoly(x, y, rooms[r].pts)) return r;
+  return -1;
+}
+function polyArea(pts) {
+  let a = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1];
+  return Math.abs(a) / 2;
+}
+function polyCentroid(pts) {
+  let a = 0, cx = 0, cy = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const f = pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1];
+    a += f; cx += (pts[j][0] + pts[i][0]) * f; cy += (pts[j][1] + pts[i][1]) * f;
+  }
+  if (Math.abs(a) < 1e-9) return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+  return [cx / (3 * a), cy / (3 * a)];
+}
+// Each room's floor area (m²), volume (m³) and surface area (m²), and the coupling area
+// C[i][j] (m²) through which sound passes between rooms i and j: the open parts of
+// their shared edge (doorway height for short gaps, full height for open plan) plus
+// the walls on it weighted by 10^(−Blocks/10). Room edges with neither a wall nor a
+// neighboring room count as the room's own (solid) surface. Needs the scale.
+function roomAcoustics() {
+  const m = pxToM(1), n = rooms.length, H = r => rooms[r].height;
+  const full = walls.filter(w => w.height == null);
+  const step = Math.max(1, 0.25 / m), tol = Math.max(2, 0.3 / m), probe = Math.max(2, 0.5 / m);
+  const info = rooms.map(r => {
+    const area = polyArea(r.pts) * m * m;
+    return { area, vol: area * r.height, surf: 2 * area, C: new Float64Array(n) };
+  });
+  rooms.forEach((room, i) => {
+    const P = room.pts, hi = room.height;
+    for (let k = 0; k < P.length; k++) {
+      const [ax, ay] = P[k], [bx, by] = P[(k + 1) % P.length];
+      const len = Math.hypot(bx - ax, by - ay);
+      if (len < 1e-9) continue;
+      const ux = (bx - ax) / len, uy = (by - ay) / len;
+      const nS = Math.max(1, Math.round(len / step)), dl = len / nS * m;
+      let run = null;                                // current open stretch toward room run.j
+      const flush = () => {
+        if (!run) return;
+        const hj = Math.min(hi, H(run.j));
+        const hOpen = run.len > OPEN_PLAN_M ? hj : Math.min(S.doorHeight, hj);
+        info[i].C[run.j] += run.len * hOpen;
+        info[i].surf += run.len * (hi - hOpen);      // wall above the doorway
+        run = null;
+      };
+      for (let s = 0; s < nS; s++) {
+        const qx = ax + ux * (s + 0.5) * len / nS, qy = ay + uy * (s + 0.5) * len / nS;
+        const p1x = qx - uy * probe, p1y = qy + ux * probe, p2x = qx + uy * probe, p2y = qy - ux * probe;
+        const in1 = pointInPoly(p1x, p1y, P), in2 = pointInPoly(p2x, p2y, P);
+        const j = in1 === in2 ? -1 : in1 ? roomAt(p2x, p2y, i) : roomAt(p1x, p1y, i);
+        const w = full.find(w => {                   // a wall running along the edge at this point
+          const ex = w.x2 - w.x1, ey = w.y2 - w.y1, l2 = ex * ex + ey * ey;
+          if (!l2 || Math.abs(ux * ey - uy * ex) > 0.17 * Math.sqrt(l2)) return false;
+          const t = ((qx - w.x1) * ex + (qy - w.y1) * ey) / l2;
+          return t >= 0 && t <= 1 && segDist(qx, qy, w) < tol;
+        });
+        if (j >= 0 && !w) {
+          if (run && run.j !== j) flush();
+          if (!run) run = { j, len: 0 };
+          run.len += dl;
+          continue;
+        }
+        flush();
+        info[i].surf += dl * hi;
+        if (j >= 0) info[i].C[j] += dl * Math.min(hi, H(j)) * Math.pow(10, -w.tl / 10);
+      }
+      flush();
+    }
+  });
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++) {                // each side measured the shared edge: average them
+      const c = (info[i].C[j] + info[j].C[i]) / 2;
+      info[i].C[j] = info[j].C[i] = c;
+    }
+  info.forEach((r, i) => {
+    r.absorb = rooms[i].alpha * r.surf;              // m² (Sabine absorption area)
+    r.leak = r.C.reduce((a, b) => a + b, 0);
+    r.t60 = 0.161 * r.vol / (r.absorb + r.leak);     // Sabine reverberation time (s)
+  });
+  return info;
+}
+// Steady-state reverberant energy in each room (Sabine diffuse field), rooms coupled
+// through C:  e_i (A_i + Σ_j C_ij) − Σ_j C_ij e_j = (1 − ᾱ_i)(4 W_i + S_i ⟨e_d⟩_i)
+// W_i = power of the sources inside room i; ⟨e_d⟩_i = room-average direct sound from
+// sources outside it. One room alone gives the textbook e = 4W/R, R = S ᾱ / (1 − ᾱ).
+function solveReverb(info, srcRoom, dmean) {
+  const n = rooms.length, W = new Float64Array(n);
+  sources.forEach((s, si) => {
+    if (srcRoom[si] < 0) return;
+    const lw = s.db + 20 * Math.log10(s.refDist * unitM()) + 10 * Math.log10(4 * Math.PI);  // sound power level
+    W[srcRoom[si]] += Math.pow(10, lw / 10);
+  });
+  const A = [], b = [];
+  for (let i = 0; i < n; i++) {
+    A.push(Float64Array.from(info[i].C, c => -c));
+    A[i][i] = info[i].absorb + info[i].leak;
+    b.push((1 - rooms[i].alpha) * (4 * W[i] + info[i].surf * dmean[i]));
+  }
+  return solveLinear(A, b);
+}
+function solveLinear(A, b) {          // Gaussian elimination with partial pivoting
+  const n = b.length;
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+    for (let r = c + 1; r < n; r++) {
+      const f = A[r][c] / A[c][c];
+      for (let k = c; k < n; k++) A[r][k] -= f * A[c][k];
+      b[r] -= f * b[c];
+    }
+  }
+  const x = new Float64Array(n);
+  for (let r = n - 1; r >= 0; r--) {
+    let s = b[r];
+    for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k];
+    x[r] = s / A[r][r];
+  }
+  return x;
+}
+
 /* ========================= interpolation ============================ */
 let ptSites = null, srcSites = null, mirrorSites = null, interpWalls = false;
+let ptRoom = null;                   // room of each reading, when rooms keep corrections to their own room
 let srcGrid = null, srcGridSig = '';
 let calcNote = '';
 // Distance (px) from measurement i to (x, y): around walls when that option is on.
@@ -908,6 +1128,14 @@ function solveRBF() {
 }
 // --- source model (inverse square law + energy addition, per noise_model.py) ---
 function predictSourceDba(x, y, getVis) {
+  let e = sourceEnergy(x, y, getVis);
+  if (roomE) { const r = roomAt(x, y); if (r >= 0) e += roomE[r]; }   // the room's reverberant sound
+  return 10 * Math.log10(e);
+}
+// Energy (10^(L/10)) arriving at (x, y) from every source by every modeled path. If an
+// array is passed as direct, each source's straight-through plus around-the-wall
+// energy (no reflections) is stored in it, for the rooms' reverberation.
+function sourceEnergy(x, y, getVis, direct) {
   // Distances converted to real units via the scale calibration; the far-field
   // inverse square law breaks down very close to a source, so distances are
   // clamped to a 0.5 m/ft minimum. dBA values are combined as energies, never
@@ -921,17 +1149,19 @@ function predictSourceDba(x, y, getVis) {
     const s = sources[si];
     const level = dpx => s.db - 20 * Math.log10(Math.max(dpx / k, 0.5) / s.refDist);
     const dpx = Math.hypot(x - s.x, y - s.y);
-    let L = level(dpx);
+    let L = level(dpx), around = 0;
     if (block) {
       const pl = pathLoss(s.x, s.y, x, y, -1);
       L -= pl.db;
       const site = srcSites && srcSites[si];
       if (site && pl.full) {               // also the route around wall ends, e.g. through a doorway
         const g = pathDist(site, x, y, getVis);
-        if (isFinite(g)) energy += Math.pow(10, (level(g) - screenDb(pxToM(g - dpx))) / 10);
+        if (isFinite(g)) around = Math.pow(10, (level(g) - screenDb(pxToM(g - dpx))) / 10);
       } else if (site) L -= edgeScreen(s.x, s.y, x, y);
     }
-    energy += Math.pow(10, L / 10);
+    const eDirect = Math.pow(10, L / 10) + around;
+    if (direct) direct[si] = eDirect;
+    energy += eDirect;
     if (!reflect) continue;
     // Each wall reflects the source once, as if from its mirror image behind the wall.
     // The image is treated like a real source: screened by walls on the way, routed
@@ -969,15 +1199,19 @@ function predictSourceDba(x, y, getVis) {
       }
     }
   }
-  return 10 * Math.log10(energy);
+  return energy;
 }
 function idwResidual(x, y, getVis) {
   // IDW-interpolated residual field calibrates the idealized source model to
-  // the measured SLM readings (absorbing reflections, shielding, etc.).
+  // the measured SLM readings (absorbing reflections, shielding, etc.). With rooms,
+  // a room that has readings is corrected by its own readings only; a room without
+  // any borrows its neighbors' corrections like everywhere else.
   const minPx = 0.5 * calib.pxPerUnit;
+  const own = ptRoom ? roomAt(x, y) : -1;
+  const only = own >= 0 && ptRoom.includes(own) ? own : -1;
   let num = 0, den = 0;
   for (let i = 0; i < points.length; i++) {
-    if (srcResiduals[i] === undefined) continue;
+    if (srcResiduals[i] === undefined || (only >= 0 && ptRoom[i] !== only)) continue;
     const d = ptDist(i, x, y, getVis);
     if (!isFinite(d)) continue;
     const w = 1 / Math.pow(Math.max(d, minPx), S.power);
@@ -1045,23 +1279,39 @@ function computeField() {
     ? sources.map(s => walls.map(w => w.alpha < 1 && Math.hypot(w.x2 - w.x1, w.y2 - w.y1) >= 1e-6 ? makeMirrorSite(s, w) : null))
     : null;
   rbfW = (S.method === 'rbf' && points.length >= 3) ? solveRBF() : null;
-  srcResiduals = (S.method === 'source' && points.length > 0)
-    ? points.map(p => p.db - predictSourceDba(p.x, p.y, () => visVerts(p.x, p.y)))
-    : null;
   const W = gw + 1;
-  if (S.method === 'source') {   // the physics grid only changes with sources, walls, or scale
+  if (S.method === 'source') {   // the physics grid only changes with sources, walls, rooms, or scale
+    const reverb = S.roomReverb && rooms.length > 0;
     const sig = JSON.stringify([sources, walls, calib.pxPerUnit, calib.unit, S.wallsBlock, S.wallReflect,
-                                S.srcHeight, S.earHeight, gw, gh, imgW, imgH]);
+                                S.srcHeight, S.earHeight, gw, gh, imgW, imgH,
+                                reverb && rooms, reverb && S.doorHeight]);
     if (sig !== srcGridSig) {
-      srcGrid = new Float64Array(W * (gh + 1));
+      const N = W * (gh + 1), E = new Float64Array(N);
+      const cellRoom = reverb ? new Int32Array(N) : null;
+      const srcRoom = reverb ? sources.map(s => roomAt(s.x, s.y)) : null;
+      const dsum = new Float64Array(rooms.length), dcnt = new Float64Array(rooms.length);
+      const dir = new Float64Array(sources.length);
       for (let j = 0; j <= gh; j++)
         for (let i = 0; i <= gw; i++) {
           const c = j * W + i;
-          srcGrid[c] = predictSourceDba(i * sx, j * sy, () => CV.lists[c]);
+          E[c] = sourceEnergy(i * sx, j * sy, () => CV.lists[c], reverb ? dir : null);
+          if (!reverb) continue;
+          const r = cellRoom[c] = roomAt(i * sx, j * sy);
+          if (r < 0) continue;
+          dcnt[r]++;
+          for (let si = 0; si < sources.length; si++) if (srcRoom[si] !== r) dsum[r] += dir[si];
         }
+      roomE = reverb ? solveReverb(roomAcoustics(), srcRoom, dsum.map((v, r) => dcnt[r] ? v / dcnt[r] : 0)) : null;
+      srcGrid = new Float64Array(N);
+      for (let c = 0; c < N; c++)
+        srcGrid[c] = 10 * Math.log10(E[c] + (reverb && cellRoom[c] >= 0 ? roomE[cellRoom[c]] : 0));
       srcGridSig = sig;
     }
   }
+  srcResiduals = (S.method === 'source' && points.length > 0)
+    ? points.map(p => p.db - predictSourceDba(p.x, p.y, () => visVerts(p.x, p.y)))
+    : null;
+  ptRoom = S.method === 'source' && S.roomReverb && rooms.length ? points.map(p => roomAt(p.x, p.y)) : null;
   grid = new Float64Array(W * (gh + 1));
   for (let j = 0; j <= gh; j++)
     for (let i = 0; i <= gw; i++)
@@ -1162,6 +1412,7 @@ function drawMapLayers(c, k) {  // c: 2d context already in image coords; k: px 
       }
     }
   }
+  if (S.showRooms) drawRooms(c, k);
   if (S.showWalls) drawWalls(c, k);
   if (S.showMarkers) {
     for (const s of sources) {   // noise sources: orange diamonds
@@ -1199,7 +1450,8 @@ function wallKind(w) { return w.height != null ? 'barrier' : w.alpha >= 0.3 ? 'a
 const WALL_LOOK = {
   wall:    { color: '#37474f', width: 5, dash: null,   label: 'Wall' },
   absorb:  { color: '#00897b', width: 5, dash: null,   label: 'Sound-absorbing wall' },
-  barrier: { color: '#6d4c41', width: 4, dash: [9, 6], label: 'Partial barrier' }
+  barrier: { color: '#6d4c41', width: 4, dash: [9, 6], label: 'Partial barrier' },
+  room:    { color: '#1565c0', width: 2, dash: [7, 5], label: 'Room (reverberation)' }
 };
 function strokeWall(c, x1, y1, x2, y2, look, k) {   // white halo first, so walls read over the heat map
   c.save(); c.lineCap = 'round';
@@ -1212,8 +1464,28 @@ function strokeWall(c, x1, y1, x2, y2, look, k) {   // white halo first, so wall
 function drawWalls(c, k) {
   for (const w of walls) strokeWall(c, w.x1, w.y1, w.x2, w.y2, WALL_LOOK[wallKind(w)], k);
 }
+const ROOM_COLOR = '#1565c0';
+function tracePoly(c, pts, close) {
+  c.beginPath();
+  pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y));
+  if (close) c.closePath();
+}
+function drawRooms(c, k) {             // dashed outlines with the room name at the center
+  c.save();
+  for (const r of rooms) {
+    c.setLineDash([7 * k, 5 * k]); c.lineWidth = 1.8 * k; c.strokeStyle = ROOM_COLOR;
+    tracePoly(c, r.pts, true); c.stroke();
+    c.setLineDash([]);
+    const [cx, cy] = polyCentroid(r.pts);
+    c.font = `bold ${11 * k}px Segoe UI, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 3.4 * k; c.strokeStyle = 'rgba(255,255,255,0.92)'; c.strokeText(r.name, cx, cy);
+    c.fillStyle = ROOM_COLOR; c.fillText(r.name, cx, cy);
+  }
+  c.restore();
+}
 function drawLegend(c, x, y, k) {
   const kinds = S.showWalls ? ['wall', 'absorb', 'barrier'].filter(kd => walls.some(w => wallKind(w) === kd)) : [];
+  if (S.showRooms && rooms.length) kinds.push('room');
   const rows = colors.length, rh = 17*k, w = 148*k;
   const h = rows*rh + 30*k + (kinds.length ? 8*k + kinds.length*rh : 0);
   c.save();
@@ -1311,6 +1583,39 @@ function draw() {
     }
     ctx.restore();
   }
+  // selected room: tinted with corner handles
+  if (selRoom && rooms.includes(selRoom)) {
+    const k = 1 / view.scale;
+    ctx.save();
+    tracePoly(ctx, selRoom.pts, true);
+    ctx.fillStyle = 'rgba(21,101,192,0.10)'; ctx.fill();
+    ctx.lineWidth = 3 * k; ctx.strokeStyle = 'rgba(21,101,192,0.8)'; ctx.stroke();
+    for (const [px, py] of selRoom.pts) {
+      ctx.beginPath(); ctx.arc(px, py, 5.5 * k, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2 * k; ctx.strokeStyle = ROOM_COLOR; ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // room drawing: corners so far, the next edge, and the closing edge
+  if (mode === 'room' && mouseImg) {
+    const k = 1 / view.scale;
+    const q = snapWallPoint(mouseImg.x, mouseImg.y, mouseShift);
+    if (roomDraft) {
+      ctx.save();
+      ctx.lineWidth = 2 * k; ctx.strokeStyle = ROOM_COLOR;
+      tracePoly(ctx, [...roomDraft, [q.x, q.y]], false); ctx.stroke();
+      ctx.setLineDash([5 * k, 4 * k]); ctx.globalAlpha = 0.6;
+      tracePoly(ctx, [[q.x, q.y], roomDraft[0]], false); ctx.stroke();
+      ctx.restore();
+      for (const [px, py] of roomDraft) {
+        ctx.beginPath(); ctx.arc(px, py, 4 * k, 0, Math.PI * 2); ctx.fillStyle = ROOM_COLOR; ctx.fill();
+      }
+    }
+    if (q.snapped) {
+      ctx.beginPath(); ctx.arc(q.x, q.y, 7 * k, 0, Math.PI * 2);
+      ctx.lineWidth = 2.2 * k; ctx.strokeStyle = '#d81b60'; ctx.stroke();
+    }
+  }
   // wall drawing: preview of the next section and the snap target
   if (mode === 'wall' && mouseImg) {
     const k = 1 / view.scale;
@@ -1391,10 +1696,25 @@ cv.addEventListener('mousedown', e => {
     if (hitS) { drag = { type: 'src', pt: hitS }; return; }
     const hit = points.find(pt => Math.hypot(pt.x - p.x, pt.y - p.y) * view.scale < 11);
     if (hit) { drag = { type: 'pt', pt: hit }; return; }
+    if (selRoom) {                       // corners of the selected room
+      const pt = selRoom.pts.find(q => Math.hypot(q[0] - p.x, q[1] - p.y) * view.scale < 9);
+      if (pt) { drag = { type: 'roomPt', room: selRoom, pt }; return; }
+    }
     const ends = wallEndsAt(p.x, p.y, 9 / view.scale);
     if (ends) { selectWall(ends[0].w); drag = { type: 'wallEnd', ends }; return; }
+    const lbl = S.showRooms ? roomLabelAt(p.x, p.y) : null;
+    if (lbl) { selectRoom(lbl); drag = { type: 'pan', sx: e.clientX, sy: e.clientY, tx: view.tx, ty: view.ty }; return; }
     selectWall(wallAt(p.x, p.y, 6 / view.scale));
+    if (selRoom) selectRoom(null);
     drag = { type: 'pan', sx: e.clientX, sy: e.clientY, tx: view.tx, ty: view.ty };
+  } else if (mode === 'room') {
+    const q = snapWallPoint(clamp(p.x, 0, imgW), clamp(p.y, 0, imgH), e.shiftKey);
+    if (roomDraft && roomDraft.length >= 3 &&
+        Math.hypot(q.x - roomDraft[0][0], q.y - roomDraft[0][1]) * view.scale < 10) { finishRoom(); return; }
+    const last = roomDraft && roomDraft[roomDraft.length - 1];
+    if (last && Math.hypot(q.x - last[0], q.y - last[1]) * view.scale < 4) return;   // 2nd press of a double-click
+    (roomDraft = roomDraft || []).push([q.x, q.y]);
+    draw(); updateStatus();
   } else if (mode === 'wall') {
     const q = snapWallPoint(clamp(p.x, 0, imgW), clamp(p.y, 0, imgH), e.shiftKey);
     if (wallDraft && Math.hypot(q.x - wallDraft.x, q.y - wallDraft.y) * view.scale < 4) return;  // 2nd press of a double-click
@@ -1443,6 +1763,7 @@ cv.addEventListener('mousedown', e => {
 });
 cv.addEventListener('dblclick', () => {
   if (mode === 'wall' && wallDraft) { wallDraft = null; draw(); }
+  if (mode === 'room' && roomDraft) finishRoom();
 });
 window.addEventListener('mousemove', e => {
   mouseShift = e.shiftKey;
@@ -1451,7 +1772,7 @@ window.addEventListener('mousemove', e => {
     if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
       mouseImg = toImg(e);
       updateStatus();
-      if ((mode === 'cal' && calClicks.length === 1) || mode === 'wall') draw();
+      if ((mode === 'cal' && calClicks.length === 1) || mode === 'wall' || mode === 'room') draw();
     }
   }
   if (!drag) return;
@@ -1470,6 +1791,11 @@ window.addEventListener('mousemove', e => {
       if (end === 1) { w.x1 = q.x; w.y1 = q.y; } else { w.x2 = q.x; w.y2 = q.y; }
     }
     draw(); recompute();
+  } else if (drag.type === 'roomPt') {
+    const p = toImg(e);
+    const q = snapWallPoint(clamp(p.x, 0, imgW), clamp(p.y, 0, imgH), false, null, drag.pt);
+    drag.pt[0] = q.x; drag.pt[1] = q.y;
+    draw(); recompute();
   }
 });
 window.addEventListener('mouseup', () => {
@@ -1481,6 +1807,7 @@ window.addEventListener('mouseup', () => {
     if (walls.length !== n && !walls.includes(selWall)) selWall = null;
     rebuildWallTable(); recompute(true);
   }
+  if (drag && drag.type === 'roomPt') { rebuildRoomTable(); recompute(true); }
   drag = null;
 });
 window.addEventListener('resize', draw);
@@ -1505,22 +1832,29 @@ window.addEventListener('keydown', e => {
   if (e.key === 'a' || e.key === 'A') setMode('add');
   if ((e.key === 's' || e.key === 'S') && calib) setMode('addsrc');
   if (e.key === 'w' || e.key === 'W') setMode('wall');
+  if (e.key === 'r' || e.key === 'R') setMode('room');
   if (e.key === 'c' || e.key === 'C') setMode('cal');
   if (e.key === 'h' || e.key === 'H') openGuide();
   if ((e.key === 'Delete' || e.key === 'Backspace') && selWall) { e.preventDefault(); deleteWall(selWall); }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && selRoom) { e.preventDefault(); deleteRoom(selRoom); }
 });
 window.addEventListener('keyup', e => {
   if (e.key === 'Shift') { mouseShift = false; if (mode === 'wall') draw(); }
 });
 function closeModals() {
   $('ptModal').classList.add('hidden'); $('calModal').classList.add('hidden'); $('srcModal').classList.add('hidden');
-  pendingPt = null; pendingSrc = null; calClicks = []; wallDraft = null; draw();
+  pendingPt = null; pendingSrc = null; calClicks = []; wallDraft = null; roomDraft = null; draw();
 }
 function updateStatus() {
   if (!baseImg || !mouseImg) return;
   let s = mode === 'wall'
     ? (wallDraft ? 'Click the next corner — double-click or Esc to finish, hold Shift for a straight line'
                  : 'Click where the wall starts')
+      + '  |  '
+    : mode === 'room'
+    ? (!roomDraft ? 'Click the first corner of the room'
+       : roomDraft.length < 3 ? 'Click the next corner of the room (Esc cancels)'
+       : 'Click the next corner — click the first corner again or double-click to close the room')
       + '  |  ' : '';
   s += `x ${Math.round(mouseImg.x)} px, y ${Math.round(mouseImg.y)} px`;
   const u = toUnits(mouseImg.x, mouseImg.y);
@@ -1536,7 +1870,7 @@ function updateStatus() {
 /* ============================ modes ================================= */
 function setMode(m) {
   mode = m; calClicks = []; closeModals();
-  for (const [id, mm] of [['modePan','pan'], ['modeAdd','add'], ['modeSrc','addsrc'], ['modeWall','wall'], ['modeCal','cal']])
+  for (const [id, mm] of [['modePan','pan'], ['modeAdd','add'], ['modeSrc','addsrc'], ['modeWall','wall'], ['modeRoom','room'], ['modeCal','cal']])
     $(id).classList.toggle('active', mm === m);
   cv.style.cursor = m === 'pan' ? 'grab' : 'crosshair';
   draw(); updateStatus();
@@ -1544,6 +1878,7 @@ function setMode(m) {
 $('modePan').onclick = () => setMode('pan');
 $('modeAdd').onclick = () => setMode('add');
 $('modeWall').onclick = () => setMode('wall');
+$('modeRoom').onclick = () => setMode('room');
 $('modeSrc').onclick = () => {
   if (!calib) { alert('Calibrate the scale first (Section 6) — source distances are computed in real units.'); return; }
   setMode('addsrc');
@@ -1592,7 +1927,7 @@ $('cmCancel').onclick = closeModals;
 function updateCalibInfo() {
   $('calibInfo').textContent = calib ? `${calib.pxPerUnit.toFixed(2)} px/${calib.unit}` : 'not set';
   $('originInfo').textContent = calib && calib.originSet ? 'origin set' : '';
-  rebuildPtTable(); rebuildWallTable(); syncHeightUI();
+  rebuildPtTable(); rebuildWallTable(); rebuildRoomTable(); syncHeightUI();
 }
 
 /* ========================== point table ============================ */
@@ -1647,9 +1982,11 @@ $('btnClearPts').onclick = () => {
 /* ============================ wall editing =========================== */
 // Snap a wall point: Shift locks horizontal/vertical from the current start; then the
 // nearest wall end within reach wins, otherwise the nearest point on a wall (T-joints).
-function snapWallPoint(x, y, shift, skip) {
-  if (shift && wallDraft) {
-    if (Math.abs(x - wallDraft.x) > Math.abs(y - wallDraft.y)) y = wallDraft.y; else x = wallDraft.x;
+function snapWallPoint(x, y, shift, skip, skipCorner) {
+  const last = mode === 'room' && roomDraft && roomDraft.length
+    ? { x: roomDraft[roomDraft.length - 1][0], y: roomDraft[roomDraft.length - 1][1] } : wallDraft;
+  if (shift && last) {
+    if (Math.abs(x - last.x) > Math.abs(y - last.y)) y = last.y; else x = last.x;
   }
   const r = 10 / view.scale;
   let best = null, bd = r;
@@ -1660,6 +1997,12 @@ function snapWallPoint(x, y, shift, skip) {
       if (d < bd) { bd = d; best = { x: ex, y: ey }; }
     }
   }
+  for (const rm of rooms)                // room corners too, so neighboring rooms share edges
+    for (const p of rm.pts) {
+      if (p === skipCorner) continue;
+      const d = Math.hypot(p[0] - x, p[1] - y);
+      if (d < bd) { bd = d; best = { x: p[0], y: p[1] }; }
+    }
   if (!best) {
     bd = r;
     for (const w of walls) {
@@ -1698,7 +2041,9 @@ function wallEndsAt(x, y, r) {   // every wall end at the nearest end point with
 }
 function selectWall(w) {
   if (selWall === w) return;
-  selWall = w; rebuildWallTable(); draw();
+  selWall = w;
+  if (w && selRoom) { selRoom = null; rebuildRoomTable(); }
+  rebuildWallTable(); draw();
   const row = w && document.querySelector(`.wallRow[data-id="${w.id}"]`);
   if (row) row.scrollIntoView({ block: 'nearest' });
 }
@@ -1765,8 +2110,100 @@ function syncHeightUI() {   // heights are stored in meters and shown in the cal
   const u = unitM();
   $('numSrcH').value = +(S.srcHeight / u).toFixed(2);
   $('numEarH').value = +(S.earHeight / u).toFixed(2);
+  $('numDoorH').value = +(S.doorHeight / u).toFixed(2);
   document.querySelectorAll('.hUnit').forEach(el => { el.textContent = calib ? calib.unit : 'm'; });
 }
+
+/* ============================ room editing =========================== */
+function selectRoom(r) {
+  if (selRoom === r) return;
+  selRoom = r;
+  if (r) selWall = null;
+  rebuildWallTable(); rebuildRoomTable(); draw();
+  const row = r && document.querySelector(`.roomRow[data-id="${r.id}"]`);
+  if (row) row.scrollIntoView({ block: 'nearest' });
+}
+function deleteRoom(r) {
+  rooms = rooms.filter(q => q !== r);
+  if (selRoom === r) selRoom = null;
+  rebuildRoomTable(); recompute(true);
+}
+function finishRoom() {
+  if (!roomDraft || roomDraft.length < 3) { roomDraft = null; draw(); return; }
+  const r = newRoom(roomDraft);
+  rooms.push(r); roomDraft = null;
+  selectRoom(r); rebuildRoomTable(); recompute(true);
+}
+function roomLabelAt(x, y) {           // the room whose name label is under (x, y)
+  for (const r of rooms) {
+    const [cx, cy] = polyCentroid(r.pts);
+    if (Math.abs(x - cx) * view.scale < 45 && Math.abs(y - cy) * view.scale < 10) return r;
+  }
+  return null;
+}
+function rebuildRoomTable() {
+  const t = $('roomTable'); t.innerHTML = '';
+  const unit = calib ? calib.unit : 'm', u = unitM();
+  const info = calib && rooms.length ? roomAcoustics() : null;
+  rooms.forEach((room, i) => {
+    const box = document.createElement('div');
+    box.className = 'wallRow roomRow' + (room === selRoom ? ' sel' : '');
+    box.dataset.id = room.id;
+    box.onclick = e => { if (!/^(INPUT|SELECT|BUTTON|OPTION)$/.test(e.target.tagName)) selectRoom(room); };
+    const top = document.createElement('div'); top.className = 'wtop';
+    const name = document.createElement('input'); name.type = 'text'; name.value = room.name;
+    name.style.cssText = 'flex:1; min-width:0; font-weight:600; color:#1a355e';
+    name.onchange = () => { room.name = name.value || ('Room ' + room.id); draw(); };
+    const del = document.createElement('button'); del.textContent = '✕'; del.title = 'Delete this room';
+    del.onclick = () => deleteRoom(room);
+    top.append(name, del);
+    const fin = document.createElement('select');
+    for (const [key, p] of Object.entries(ROOM_FINISHES)) fin.add(new Option(p.name, key, false, key === room.finish));
+    if (!ROOM_FINISHES[room.finish]) fin.add(new Option('Custom (set below)', room.finish, false, true));
+    fin.title = 'Room finish (sets the average absorption)';
+    fin.onchange = () => { room.finish = fin.value; room.alpha = ROOM_FINISHES[fin.value].alpha; rebuildRoomTable(); recompute(true); };
+    const finRow = document.createElement('div'); finRow.className = 'wtop'; finRow.style.marginTop = '3px';
+    finRow.append(fin);
+    const num = (val, step, min, max, title, apply) => {
+      const inp = document.createElement('input'); inp.type = 'number';
+      inp.step = step; inp.min = min; inp.max = max; inp.value = val; inp.title = title;
+      inp.onchange = () => {
+        const v = parseFloat(inp.value);
+        if (isNaN(v) || v < min || v > max) { inp.value = val; return; }
+        apply(v); rebuildRoomTable(); recompute(true);
+      };
+      return inp;
+    };
+    const bot = document.createElement('div'); bot.className = 'wbot';
+    bot.append('Ceiling', num(+(room.height / u).toFixed(2), 0.1, 1, 100, `Ceiling height (${unit})`, v => { room.height = v * u; }), unit,
+               ' · Absorbs', num(Math.round(room.alpha * 100), 1, 1, 95, 'Average absorption of the room’s surfaces (%)',
+                                           v => { room.alpha = v / 100; room.finish = 'custom'; }), '%');
+    const bot2 = document.createElement('div'); bot2.className = 'wbot';
+    if (info) {
+      const r = info[i];
+      bot2.append('Reverb. time', num(+r.t60.toFixed(2), 0.1, 0.1, 30,
+        'Reverberation time T60 (s). Calculated from the room; type a measured value to set the absorption from it.',
+        v => {   // Sabine: T = 0.161 V / (ᾱ S + leakage)  →  ᾱ
+          room.alpha = clamp((0.161 * r.vol / v - r.leak) / r.surf, 0.01, 0.95);
+          room.finish = 'custom';
+        }), 's');
+      const area = document.createElement('span');
+      area.textContent = ` · ${Math.round(r.area).toLocaleString()} m²`;
+      area.title = `Floor area; volume ${Math.round(r.vol).toLocaleString()} m³`;
+      bot2.append(area);
+    } else bot2.append('Set the scale (Section 6) to see the reverberation time.');
+    box.append(top, finRow, bot, bot2);
+    t.appendChild(box);
+  });
+  $('roomCount').textContent = rooms.length
+    ? `${rooms.length} room(s). In Pan mode, click a room’s name on the map to select it, drag its corner handles to adjust it, and press Delete to remove it.`
+    : 'No rooms drawn.';
+}
+$('btnClearRooms').onclick = () => {
+  if (rooms.length && !confirm('Remove all rooms?')) return;
+  rooms = []; selRoom = null; roomDraft = null;
+  rebuildRoomTable(); recompute(true);
+};
 
 /* ============================= user guide ============================ */
 function openGuide() { $('guide').classList.remove('hidden'); }
@@ -1835,15 +2272,17 @@ $('selStyle').onchange = e => { S.smooth = e.target.value === 'smooth'; recomput
 $('rngOpacity').oninput = e => { S.opacity = parseFloat(e.target.value); $('valOpacity').textContent = Math.round(S.opacity*100)+'%'; draw(); };
 for (const [id, key] of [['chkContours','showContours'], ['chkClabels','showClabels'],
                          ['chkMarkers','showMarkers'], ['chkMlabels','showMlabels'], ['chkLegend','showLegend'],
-                         ['chkWalls','showWalls']])
+                         ['chkWalls','showWalls'], ['chkRooms','showRooms']])
   $(id).onchange = e => { S[key] = e.target.checked; draw(); };
+$('chkRoomReverb').onchange = e => { S.roomReverb = e.target.checked; recompute(); };
 for (const [id, key] of [['chkWallInterp','wallsInterp'], ['chkWallBlock','wallsBlock'], ['chkWallReflect','wallReflect']])
   $(id).onchange = e => { S[key] = e.target.checked; recompute(); };
-for (const [id, key] of [['numSrcH','srcHeight'], ['numEarH','earHeight']])
+for (const [id, key] of [['numSrcH','srcHeight'], ['numEarH','earHeight'], ['numDoorH','doorHeight']])
   $(id).onchange = e => {
     const v = parseFloat(e.target.value);
     if (isNaN(v) || v < 0) { syncHeightUI(); return; }
     S[key] = v * unitM(); recompute();
+    if (key === 'doorHeight') rebuildRoomTable();
   };
 $('txtTitle').onchange = () => {};
 
@@ -1938,7 +2377,7 @@ let markSavedOnLoad = false;     // take the snapshot once the pending image fin
 function projectJSON() {
   return JSON.stringify({ app: 'noise-contour-mapper', version: 1,
     title: $('txtTitle').value, image: baseDataURL, points, nextId, sources, nextSrcId,
-    walls, nextWallId, edges, colors, settings: S, calib });
+    walls, nextWallId, rooms, nextRoomId, edges, colors, settings: S, calib });
 }
 window.addEventListener('beforeunload', e => {
   if (!baseImg && !points.length && !sources.length) return;
@@ -1960,6 +2399,8 @@ $('fileProj').onchange = async e => {
     sources = proj.sources || []; nextSrcId = proj.nextSrcId || (sources.length + 1);
     walls = proj.walls || []; nextWallId = proj.nextWallId || (walls.length + 1);
     selWall = null; wallDraft = null;
+    rooms = proj.rooms || []; nextRoomId = proj.nextRoomId || (rooms.length + 1);
+    selRoom = null; roomDraft = null;
     edges = proj.edges || DEFAULT_EDGES.slice(); colors = proj.colors || DEFAULT_COLORS.slice();
     Object.assign(S, DEFAULT_S, proj.settings || {});
     calib = proj.calib || null;
@@ -1974,6 +2415,7 @@ $('fileProj').onchange = async e => {
     $('chkMarkers').checked = S.showMarkers; $('chkMlabels').checked = S.showMlabels; $('chkLegend').checked = S.showLegend;
     $('chkWalls').checked = S.showWalls; $('chkWallInterp').checked = S.wallsInterp;
     $('chkWallBlock').checked = S.wallsBlock; $('chkWallReflect').checked = S.wallReflect;
+    $('chkRooms').checked = S.showRooms; $('chkRoomReverb').checked = S.roomReverb;
     updateCalibInfo(); rebuildBandsUI(); rebuildPtTable(); rebuildSrcTable();
     if (proj.image) { markSavedOnLoad = true; setImage(proj.image); }
     else { baseImg = null; draw(); savedSnapshot = projectJSON(); }
@@ -2000,7 +2442,8 @@ $('btnPng').onclick = () => {
     if (S.method === 'source' && S.wallsBlock) wopts.push('blocking');
     if (S.method === 'source' && S.wallReflect) wopts.push('reflections');
     if (S.wallsInterp) wopts.push('readings bounded by walls');
-    const wallNote = walls.length ? `  ·  ${walls.length} walls${wopts.length ? ' (' + wopts.join(', ') + ')' : ''}` : '';
+    const wallNote = (walls.length ? `  ·  ${walls.length} walls${wopts.length ? ' (' + wopts.join(', ') + ')' : ''}` : '')
+      + (S.method === 'source' && S.roomReverb && rooms.length ? `  ·  ${rooms.length} rooms (reverberation)` : '');
     const meta = `${new Date().toISOString().slice(0,10)}  ·  ${points.length} measurements  ·  ${meth}${wallNote}  ·  © 2026 Mark Huang`;
     c.font = `${10*k}px Segoe UI, sans-serif`;
     const mw = c.measureText(meta).width;
@@ -2068,6 +2511,15 @@ $('btnDemo').onclick = () => {
   ];
   nextWallId = 1; selWall = null; wallDraft = null;
   walls = demoWalls.map(([x1, y1, x2, y2, type]) => newWall(x1, y1, x2, y2, type));
+  nextRoomId = 1; selRoom = null; roomDraft = null;
+  rooms = [
+    ['Stamping / press', [[40, 40], [520, 40], [520, 500], [40, 500]], 'typical', 6],
+    ['Assembly',         [[520, 40], [900, 40], [900, 500], [520, 500]], 'typical', 6],
+    ['Offices / break',  [[40, 500], [520, 500], [520, 860], [40, 860]], 'treated', 3],
+    ['Packaging',        [[520, 500], [900, 500], [900, 860], [520, 860]], 'typical', 6],
+    ['Compressor',       [[900, 40], [1360, 40], [1360, 300], [900, 300]], 'partly', 6],
+    ['Warehouse',        [[900, 300], [1360, 300], [1360, 860], [900, 860]], 'typical', 8]
+  ].map(([name, pts, finish, h]) => Object.assign(newRoom(pts, finish, h), { name }));
   rebuildSrcTable();
   updateCalibInfo();
   $('txtTitle').value = 'Demo Facility — Noise Contour Map';
@@ -2079,6 +2531,7 @@ rebuildBandsUI();
 rebuildPtTable();
 rebuildSrcTable();
 rebuildWallTable();
+rebuildRoomTable();
 syncHeightUI();
 setMode('pan');
 draw();

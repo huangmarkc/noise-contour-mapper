@@ -34,12 +34,16 @@ or press <kbd>H</kbd>.
    walls so corners close. Each wall has a type preset (concrete, acoustic panels,
    drywall, metal, glass, curtain, partial barrier) with editable sound reduction
    ("Blocks", dB), absorption (%), and — for partial barriers — height.
-5. **Tune the map** — calculation method (IDW with adjustable power, multiquadric RBF,
+5. **Draw rooms for reverberation** (optional) — *Draw room* in the toolbar; click
+   each corner, then the first corner again (or double-click) to close. Each room has
+   a ceiling height and a finish preset that sets its average absorption; the
+   reverberation time (Sabine) is shown and can be overridden with a measured value.
+6. **Tune the map** — calculation method (IDW with adjustable power, multiquadric RBF,
    or the source model below), grid resolution, banded vs. smooth gradient, overlay
    opacity, and an optional mask that hides interpolation far from any measurement.
    With walls, *Measurements don't pass through walls* makes every method measure
    distance around walls (through openings) rather than through them.
-6. **Source model + residuals (optional)** — place known equipment as point noise
+7. **Source model + residuals (optional)** — place known equipment as point noise
    sources (toolbar → *Add source*), each with its sound level at a reference distance.
    Levels are predicted with the inverse square law (`Lp2 = Lp1 − 20·log10(r2/r1)`,
    0.5 m near-field clamp) and combined by logarithmic energy addition, then calibrated
@@ -48,11 +52,14 @@ or press <kbd>H</kbd>.
    scale. With walls, each source also loses each crossed wall's sound reduction, bends
    around wall ends and over partial barriers (Maekawa screening in the Kurze–Anderson
    form at 500 Hz, capped at 20 dB), and reflects once off each wall (image sources,
-   reduced by absorption). The same math is available as a standalone Python module in
+   reduced by absorption). With rooms, each room adds its reverberant field
+   (`Lrev = Lw + 10·log10(4/R)`, `R = S·ᾱ/(1 − ᾱ)`, `Lw = Lp1 + 20·log10(r1) + 11`),
+   with rooms coupled through the doorways and walls between them, and each room's
+   readings correct that room. The same math is available as a standalone Python module in
    [noise_model.py](noise_model.py) (verified to match the app to within 1e-12 dB).
-7. **Noise bands** — defaults are <80, 80–85, 85–90, 90–95, >95 dBA; boundaries and colors
+8. **Noise bands** — defaults are <80, 80–85, 85–90, 90–95, >95 dBA; boundaries and colors
    are fully editable, and contour lines are drawn at each boundary.
-8. **Export** — PNG of the finished map (with legend, scale bar, title block, date, and
+9. **Export** — PNG of the finished map (with legend, scale bar, title block, date, and
    method note), CSV of the measurement points, or save/open the whole project as JSON.
 
 ## Project layout
@@ -78,10 +85,11 @@ purpose); the exe and NSIS installer land under `...\release\` and
   (e.g., the 85 dBA action level) with additional measurements before making program
   decisions.
 - The wall model is first-order: one reflection per wall, no floor/ceiling reflections,
-  no reverberant build-up, single-number (dBA) values. Residual correction against the
+  single-number (dBA) values. Reverberation is modeled only in drawn rooms, as an
+  evenly spread (diffuse) field. Residual correction against the
   measurements absorbs much of what it leaves out near the measured locations.
 - Click **Load demo** to see a worked example on a synthetic facility, with walls,
-  doorways, acoustic panels, and a partial barrier.
+  doorways, acoustic panels, a partial barrier, and six rooms.
 
 ## Your data
 

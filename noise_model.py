@@ -12,6 +12,8 @@ This module implements a hybrid noise-mapping method:
      around wall ends and over partial barriers (Maekawa / Kurze-Anderson), and
      first-order reflections (image sources); measurement influence routed
      around walls instead of through them.
+  7. Optional rooms: each room's reverberant (diffuse) field from Sabine's room
+     equation, with rooms coupled through the openings and walls between them.
 
 Important acoustical assumptions
 --------------------------------
@@ -26,12 +28,13 @@ Important acoustical assumptions
   SLM readings, absorbing (in aggregate) the effects the physics model ignores.
 * Walls (section 9) are 2-D segments. Single-number A-weighted values are used
   throughout: transmission loss as an effective field value, diffraction at a
-  representative 500 Hz, one reflection per wall. Multiple reflections, floor and
-  ceiling reflections, and reverberant build-up are not modeled.
+  representative 500 Hz, one reflection per wall. Multiple reflections and floor
+  and ceiling reflections are not modeled; reverberant build-up is modeled only in
+  rooms that are defined (section 10), as an evenly spread (diffuse) field.
 * The corrected noise grid is intended for visualization and planning — it is NOT
   a replacement for personal noise dosimetry or regulatory exposure assessment.
 
-The wall model in section 9 matches the Noise Contour Mapper app (ui/index.html)
+The wall and room models in sections 9 and 10 match the Noise Contour Mapper app (ui/index.html)
 calculation for calculation; keep the two in sync when either changes.
 
 Run this file directly for a complete worked example with synthetic data:
@@ -290,7 +293,8 @@ def predict_at_measurement_points(measurements, noise_sources, walls=None, **wal
 # ---------------------------------------------------------------------------
 
 def interpolate_residuals_idw(measurements_with_residuals, grid_x, grid_y,
-                              power=2, min_distance_m=0.5, walls=None, **wall_geometry):
+                              power=2, min_distance_m=0.5, walls=None, rooms=None,
+                              **wall_geometry):
     """Interpolate measurement residuals across the grid with inverse
     distance weighting (IDW).
 
@@ -315,6 +319,9 @@ def interpolate_residuals_idw(measurements_with_residuals, grid_x, grid_y,
         When given, distances are measured around full-height walls (e.g. through
         doorways) instead of through them. Cells no measurement can reach get a
         residual of 0 (the physics prediction alone).
+    rooms : list of dict, optional
+        When given (see make_room), a room that contains measurements is corrected
+        by its own measurements only; other places use all of them.
     **wall_geometry
         Passed to WallModel (vertex_offset_m, join_tol_m).
 
@@ -323,18 +330,23 @@ def interpolate_residuals_idw(measurements_with_residuals, grid_x, grid_y,
     residual_grid : np.ndarray
         Interpolated residual (dB) at every grid cell.
     """
-    if walls:
-        model = WallModel(walls, **wall_geometry)
+    if walls or rooms:
+        model = WallModel(walls or [], **wall_geometry)
         gx, gy = np.asarray(grid_x, dtype=float), np.asarray(grid_y, dtype=float)
         rows = [(row["x"], row["y"], row["residual_dba"])
                 for _, row in measurements_with_residuals.iterrows()]
         sites = [model.site(x, y) for x, y, _ in rows] if model.full else None
+        pt_room = [room_at(x, y, rooms) for x, y, _ in rows] if rooms else None
         residual_grid = np.zeros_like(gx)
         for idx in np.ndindex(gx.shape):
             x, y = gx[idx], gy[idx]
+            own = room_at(x, y, rooms) if rooms else -1
+            only = own if own >= 0 and own in pt_room else -1
             vis = None
             num = den = 0.0
             for k, (mx, my, res) in enumerate(rows):
+                if only >= 0 and pt_room[k] != only:
+                    continue
                 if sites is None:
                     d = math.hypot(x - mx, y - my)
                 else:
@@ -638,11 +650,15 @@ class WalledSourceModel:
     in the way, also around wall ends (e.g. through a doorway), screened by the
     detour; and (3) once off each wall, from its mirror image, reduced by the
     wall's absorption and treated like a real source (blocked, routed around
-    walls, faded at wall ends). Paths are combined by energy addition.
+    walls, faded at wall ends). Paths are combined by energy addition. With
+    rooms (section 10), each room's reverberant sound is added inside it; the
+    room-average direct sound from sources outside a room is taken over the points
+    of room_grid (x and y arrays), as the app does over its calculation grid.
     """
 
     def __init__(self, noise_sources, walls, block=True, reflect=True,
-                 source_height_m=1.0, ear_height_m=1.5, **wall_geometry):
+                 source_height_m=1.0, ear_height_m=1.5, rooms=None, room_grid=None,
+                 door_height_m=3.0, **wall_geometry):
         self.sources = list(noise_sources)
         self.walls = list(walls or [])
         self.model = WallModel(self.walls, **wall_geometry)
@@ -656,9 +672,43 @@ class WalledSourceModel:
             self.mirrors = [[self.model.mirror_site(s, w)[1]
                              if w["alpha"] < 1 and math.hypot(w["x2"] - w["x1"], w["y2"] - w["y1"]) >= 1e-6
                              else None for w in self.walls] for s in self.sources]
+        self.rooms = list(rooms or [])
+        self.room_e = self._reverberation(room_grid, door_height_m) if self.rooms else None
+
+    def _reverberation(self, room_grid, door_height_m):
+        """Reverberant energy (10^(L/10)) of each room."""
+        src_room = [room_at(s["x"], s["y"], self.rooms) for s in self.sources]
+        n = len(self.rooms)
+        dsum, dcnt = np.zeros(n), np.zeros(n)
+        if room_grid is not None:
+            gx, gy = (np.asarray(a, dtype=float).ravel() for a in room_grid)
+            direct = np.zeros(len(self.sources))
+            for x, y in zip(gx, gy):
+                r = room_at(x, y, self.rooms)
+                if r < 0:
+                    continue
+                self.energy(x, y, direct)
+                dcnt[r] += 1
+                for si in range(len(self.sources)):
+                    if src_room[si] != r:
+                        dsum[r] += direct[si]
+        dmean = np.divide(dsum, dcnt, out=np.zeros(n), where=dcnt > 0)
+        info = room_acoustics(self.rooms, self.walls, door_height_m)
+        return solve_reverberation(self.rooms, info, self.sources, src_room, dmean)
 
     def level(self, x, y):
-        """Predicted sound level (dBA) at (x, y)."""
+        """Predicted sound level (dBA) at (x, y), including room reverberation."""
+        e = self.energy(x, y)
+        if self.room_e is not None:
+            r = room_at(x, y, self.rooms)
+            if r >= 0:
+                e += self.room_e[r]
+        return 10 * math.log10(e)
+
+    def energy(self, x, y, direct=None):
+        """Energy (10^(L/10)) at (x, y) from all sources by every path. If an array
+        is passed as direct, each source's straight-through plus around-the-wall
+        energy (no reflections) is stored in it."""
         m, energy = self.model, 0.0
         vis = None
 
@@ -675,17 +725,20 @@ class WalledSourceModel:
             def lvl(d, s=s):
                 return s["source_level_dba"] - 20 * math.log10(max(d, 0.5) / s["reference_distance_m"])
             d = math.hypot(x - s["x"], y - s["y"])
-            direct = lvl(d)
+            lev, around = lvl(d), 0.0
             if self.block:
                 db, full = loss(s["x"], s["y"], x, y, -1)
-                direct -= db
+                lev -= db
                 if self.sites is not None and full:
                     g = m.path_distance(s["x"], s["y"], self.sites[si], x, y, get_vis())
                     if not math.isinf(g):
-                        energy += 10 ** ((lvl(g) - screen_db(g - d)) / 10)
+                        around = 10 ** ((lvl(g) - screen_db(g - d)) / 10)
                 elif self.sites is not None:
-                    direct -= m.edge_screen(s["x"], s["y"], x, y)
-            energy += 10 ** (direct / 10)
+                    lev -= m.edge_screen(s["x"], s["y"], x, y)
+            e_direct = 10 ** (lev / 10) + around
+            if direct is not None:
+                direct[si] = e_direct
+            energy += e_direct
             if not self.reflect:
                 continue
             for wi, w in enumerate(self.walls):
@@ -724,7 +777,173 @@ class WalledSourceModel:
                     if self.block:
                         lr -= loss(s["x"], s["y"], qx, qy, wi)[0] + loss(qx, qy, x, y, wi)[0]
                     energy += 10 ** (lr / 10)
-        return 10 * math.log10(energy)
+        return energy
+
+
+# ---------------------------------------------------------------------------
+# 10. Rooms and reverberation
+# ---------------------------------------------------------------------------
+#
+# A room is a polygon (meters) with a ceiling height and an average absorption
+# coefficient. Inside it the reverberant (diffuse) field follows Sabine's room
+# equation; rooms exchange sound through the open parts of their shared edges
+# (doorways) and, weakly, through the walls on them.
+
+ROOM_FINISHES = {
+    "hard":    {"name": "Hard: bare concrete or metal, few contents",  "alpha": 0.05},
+    "typical": {"name": "Typical factory: machinery and stock",         "alpha": 0.10},
+    "partly":  {"name": "Partly treated: e.g. insulated roof",          "alpha": 0.20},
+    "treated": {"name": "Treated: acoustic ceiling or wall panels",     "alpha": 0.35},
+    "high":    {"name": "Highly treated: absorptive ceiling and walls", "alpha": 0.50},
+}
+OPEN_PLAN_M = 8.0     # open stretches between rooms longer than this are open plan (full height)
+
+
+def make_room(points, name="Room", finish="typical", height_m=6.0, alpha=None):
+    """Create a room dict; alpha defaults to the finish's average absorption."""
+    return {"name": name, "pts": [(float(x), float(y)) for x, y in points],
+            "height": float(height_m), "finish": finish,
+            "alpha": ROOM_FINISHES[finish]["alpha"] if alpha is None else float(alpha)}
+
+
+def point_in_polygon(x, y, pts):
+    inside = False
+    j = len(pts) - 1
+    for i in range(len(pts)):
+        xi, yi = pts[i]
+        xj, yj = pts[j]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def room_at(x, y, rooms, skip=-1):
+    """Index of the first room containing (x, y), or -1."""
+    for r, room in enumerate(rooms or []):
+        if r != skip and point_in_polygon(x, y, room["pts"]):
+            return r
+    return -1
+
+
+def polygon_area(pts):
+    a = 0.0
+    j = len(pts) - 1
+    for i in range(len(pts)):
+        a += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1]
+        j = i
+    return abs(a) / 2
+
+
+def room_acoustics(rooms, walls, door_height_m=3.0, step_m=0.25, cover_tol_m=0.3, probe_m=0.5):
+    """Geometry and coupling of each room.
+
+    Returns one dict per room: floor area, volume, surface area (m2) "surf",
+    coupling areas "C" (m2) to every other room, Sabine absorption area "absorb"
+    (alpha * surf), total coupling "leak", and Sabine reverberation time "t60" (s).
+    Each room edge is sampled every step_m: where a full-height wall runs along it
+    the edge is wall (and couples to the neighboring room by its area times
+    10^(-tl/10)); where it borders another room without a wall it is an opening,
+    as tall as door_height_m for stretches up to OPEN_PLAN_M, else full height.
+    Edges with neither a wall nor a neighboring room count as the room's surface.
+    """
+    full = [w for w in (walls or []) if w.get("height") is None]
+    n = len(rooms)
+    info = []
+    for room in rooms:
+        area = polygon_area(room["pts"])
+        info.append({"area": area, "vol": area * room["height"], "surf": 2 * area, "C": np.zeros(n)})
+
+    def covering_wall(qx, qy, ux, uy):
+        for w in full:
+            ex, ey = w["x2"] - w["x1"], w["y2"] - w["y1"]
+            l2 = ex * ex + ey * ey
+            if not l2 or abs(ux * ey - uy * ex) > 0.17 * math.sqrt(l2):
+                continue
+            t = ((qx - w["x1"]) * ex + (qy - w["y1"]) * ey) / l2
+            if 0 <= t <= 1 and _seg_dist(qx, qy, w) < cover_tol_m:
+                return w
+        return None
+
+    for i, room in enumerate(rooms):
+        pts, hi = room["pts"], room["height"]
+        for k in range(len(pts)):
+            (ax, ay), (bx, by) = pts[k], pts[(k + 1) % len(pts)]
+            length = math.hypot(bx - ax, by - ay)
+            if length < 1e-9:
+                continue
+            ux, uy = (bx - ax) / length, (by - ay) / length
+            n_s = max(1, math.floor(length / step_m + 0.5))
+            dl = length / n_s
+            run = None                                   # [neighbor j, open length]
+
+            def flush():
+                nonlocal run
+                if run is None:
+                    return
+                hj = min(hi, rooms[run[0]]["height"])
+                h_open = hj if run[1] > OPEN_PLAN_M else min(door_height_m, hj)
+                info[i]["C"][run[0]] += run[1] * h_open
+                info[i]["surf"] += run[1] * (hi - h_open)
+                run = None
+
+            for s_ in range(n_s):
+                qx = ax + ux * (s_ + 0.5) * length / n_s
+                qy = ay + uy * (s_ + 0.5) * length / n_s
+                p1 = (qx - uy * probe_m, qy + ux * probe_m)
+                p2 = (qx + uy * probe_m, qy - ux * probe_m)
+                in1, in2 = point_in_polygon(*p1, pts), point_in_polygon(*p2, pts)
+                if in1 == in2:
+                    j = -1
+                else:
+                    j = room_at(*(p2 if in1 else p1), rooms, skip=i)
+                w = covering_wall(qx, qy, ux, uy)
+                if j >= 0 and w is None:
+                    if run is not None and run[0] != j:
+                        flush()
+                    if run is None:
+                        run = [j, 0.0]
+                    run[1] += dl
+                    continue
+                flush()
+                info[i]["surf"] += dl * hi
+                if j >= 0:
+                    info[i]["C"][j] += dl * min(hi, rooms[j]["height"]) * 10 ** (-w["tl"] / 10)
+            flush()
+    for i in range(n):
+        for j in range(i + 1, n):
+            c = (info[i]["C"][j] + info[j]["C"][i]) / 2
+            info[i]["C"][j] = info[j]["C"][i] = c
+    for i, r in enumerate(info):
+        r["absorb"] = rooms[i]["alpha"] * r["surf"]
+        r["leak"] = float(sum(r["C"]))
+        r["t60"] = 0.161 * r["vol"] / (r["absorb"] + r["leak"])
+    return info
+
+
+def solve_reverberation(rooms, info, noise_sources, src_room, direct_mean):
+    """Steady-state reverberant energy (10^(L/10)) of each room.
+
+    Coupled Sabine rooms:  e_i (A_i + sum_j C_ij) - sum_j C_ij e_j
+                           = (1 - alpha_i) (4 W_i + S_i <e_d>_i)
+    W_i is the sound power of the sources inside room i, from
+    Lw = Lp1 + 20 log10(r1) + 10 log10(4 pi); <e_d>_i is the room-average direct
+    sound from sources outside it. One room alone gives the textbook
+    Lrev = Lw + 10 log10(4 / R), R = S alpha / (1 - alpha).
+    """
+    n = len(rooms)
+    w = np.zeros(n)
+    for si, src in enumerate(noise_sources):
+        if src_room[si] >= 0:
+            lw = (src["source_level_dba"] + 20 * math.log10(src["reference_distance_m"])
+                  + 10 * math.log10(4 * math.pi))
+            w[src_room[si]] += 10 ** (lw / 10)
+    a = np.array([-info[i]["C"] for i in range(n)], dtype=float)
+    for i in range(n):
+        a[i, i] = info[i]["absorb"] + info[i]["leak"]
+    b = np.array([(1 - rooms[i]["alpha"]) * (4 * w[i] + info[i]["surf"] * direct_mean[i])
+                  for i in range(n)])
+    return np.linalg.solve(a, b)
 
 
 # ---------------------------------------------------------------------------
@@ -812,6 +1031,19 @@ if __name__ == "__main__":
         free = calculate_source_contributions_at_point(x, y, noise_sources)[0]
         print(f"  {label:28s} ({x:4.1f}, {y:4.1f}): "
               f"{walled.level(x, y):5.1f} dBA  (no walls: {free:5.1f} dBA)")
+
+    # --- 6) Rooms: reverberation in a hard hall and an office -----------------
+    rooms = [make_room([(0, 0), (20, 0), (20, 25), (0, 25)], "Compressor bay", "typical", 6.0),
+             make_room([(20, 0), (50, 0), (50, 25), (20, 25)], "Press hall", "typical", 8.0)]
+    info = room_acoustics(rooms, walls)
+    reverb = WalledSourceModel(noise_sources, walls, rooms=rooms, room_grid=(grid_x, grid_y))
+    print("=" * 70)
+    print("With rooms (reverberation):")
+    for room, r, e in zip(rooms, info, reverb.room_e):
+        print(f"  {room['name']:15s} T60 {r['t60']:4.1f} s, reverberant level {10 * math.log10(e):5.1f} dBA")
+    for x, y in [(5.0, 20.0), (45.0, 22.0)]:
+        print(f"  at ({x:4.1f}, {y:4.1f}): {reverb.level(x, y):5.1f} dBA "
+              f"(walls only: {walled.level(x, y):5.1f} dBA)")
 
     print("=" * 70)
     print("Note: this corrected grid is for visualization and planning — not a")
